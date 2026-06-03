@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ticketmaster Workspace</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<header class="top-navbar">
+    <div class="brand-section">
+        <div class="brand-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+        </div>
+        <div>
+            <span class="brand-text">Ticketmaster</span>
+            <span class="brand-subtext">Helpdesk Platform</span>
+        </div>
+        <div class="breadcrumbs">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+            &nbsp; Enterprise Console &nbsp;➔&nbsp; <span>Ticket Management</span>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center">
+        <div class="profile-pill">
+            <div class="profile-avatar" id="avatarLetter">U</div>
+            <div>
+                <span class="profile-meta-label">Logged in as</span>
+                <span class="profile-username" id="currentUsername">Evaluating...</span>
+            </div>
+            <span id="currentUserRole" class="badge bg-light text-secondary border ms-2">None</span>
+        </div>
+        <button id="logoutBtn" class="btn-google-pill">Switch Account</button>
+    </div>
+</header>
+
+<nav class="sidebar">
+    <div class="d-flex flex-column">
+        <a id="linkDashboard" class="nav-link-custom active" onclick="switchView('DASHBOARD')">
+            <svg class="me-3" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14H5v-5h5v5zm0-7H5V5h5v5zm9 7h-5v-5h5v5zm0-7h-5V5h5v5z"/></svg>
+            Overview Dashboard
+        </a>
+        <a id="linkCreate" class="nav-link-custom" onclick="switchView('CREATE')">
+            <svg class="me-3" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            Raise New Ticket
+        </a>
+        <a id="linkConsole" class="nav-link-custom" onclick="switchView('CONSOLE')">
+            <svg class="me-3" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12z"/></svg>
+            Operations Console
+        </a>
+    </div>
+</nav>
+
+<main class="main-content">
+
+    <div id="viewDashboard" class="app-view active-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <span class="subtitle-label">Operations Dashboard</span>
+                <h3 class="fw-bold text-dark m-0 mt-1">Support Ticket Console</h3>
+                <p class="text-muted small m-0 mt-1">Real-time enterprise incident tracking & resolution management</p>
+            </div>
+            <div class="clock-widget" id="liveClock">Loading Date/Time...</div>
+        </div>
+
+        <div class="row g-4 mb-5">
+            <div class="col-md-4">
+                <div class="premium-card card-total">
+                    <div class="blob-1"></div><div class="blob-2"></div>
+                    <div class="premium-card-title">Total Fleet Volume</div>
+                    <h1 id="metricTotal" class="premium-card-value">0</h1>
+                    <div class="premium-card-footer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                        Total tickets in the system
+                    </div>
+                    <div class="card-icon-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="premium-card card-open">
+                    <div class="blob-1"></div><div class="blob-2"></div>
+                    <div class="premium-card-title">Active Operational Backlog</div>
+                    <h1 id="metricOpen" class="premium-card-value">0</h1>
+                    <div class="premium-card-footer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                        Awaiting resolution
+                    </div>
+                    <div class="card-icon-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="premium-card card-resolved">
+                    <div class="blob-1"></div><div class="blob-2"></div>
+                    <div class="premium-card-title">Mitigated / Resolved Volume</div>
+                    <h1 id="metricResolved" class="premium-card-value">0</h1>
+                    <div class="premium-card-footer">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="me-1"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                        Successfully closed
+                    </div>
+                    <div class="card-icon-box">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="app-card" style="max-width: 900px;">
+            <h5 class="fw-semibold text-dark mb-2">Workspace Dashboard Infrastructure Active</h5>
+            <p class="text-muted m-0 small">Select a workspace function from the left navigation drawer rail to initiate support payloads, audit configuration records, or resolve open anomalies.</p>
+        </div>
+    </div>
+
+    <div id="viewCreate" class="app-view">
+        <div class="row justify-content-center">
+            <div class="col-xl-8 col-lg-10">
+                <div class="app-card p-5">
+                    <h4 class="fw-semibold text-dark mb-4 text-center">Raise a System Support Ticket</h4>
+                    <form id="ticketForm">
+                        <div class="mb-4">
+                            <label for="title" class="form-label text-dark small fw-semibold">Issue Blueprint Title</label>
+                            <input type="text" class="form-control py-2" id="title" placeholder="Summary of the infrastructure block..." required>
+                        </div>
+                        <div class="mb-4">
+                            <label for="description" class="form-label text-dark small fw-semibold">Detailed Incident Log Description</label>
+                            <textarea class="form-control py-2" id="description" rows="5" placeholder="Provide complete environmental variable logs..." required></textarea>
+                        </div>
+                        <div class="mb-4">
+                            <label for="priority" class="form-label text-dark small fw-semibold">Urgency Priority Level</label>
+                            <select class="form-select py-2" id="priority" required>
+                                <option value="LOW">Low - General Maintenance Task</option>
+                                <option value="MEDIUM" selected>Medium - Operational Impediment</option>
+                                <option value="HIGH">High - Critical Outage Interruption</option>
+                            </select>
+                        </div>
+                        <div class="text-center mt-5">
+                            <button type="submit" class="btn btn-google-primary px-5 py-2 fw-semibold">Submit Ticket Request</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="viewConsole" class="app-view">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h4 class="fw-semibold text-dark m-0">Active Operational Tickets</h4>
+
+            <div class="border rounded bg-white p-1" style="height: 38px; display: inline-flex; align-items: center;">
+                <button id="filterAll" class="fixed-filter-btn btn-google-primary rounded text-white" onclick="filterGrid('ALL')">All</button>
+                <button id="filterOpen" class="fixed-filter-btn btn-light text-secondary bg-transparent" onclick="filterGrid('OPEN')">Open</button>
+                <button id="filterResolved" class="fixed-filter-btn btn-light text-secondary bg-transparent" onclick="filterGrid('RESOLVED')">Resolved</button>
+            </div>
+        </div>
+
+        <div class="app-card p-0 overflow-hidden flex-grow-1 table-card-fixed">
+            <div class="table-responsive w-100 h-100">
+                <table class="table table-hover align-middle m-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th class="ps-4 text-muted small fw-semibold" style="width: 80px;">ID</th>
+                        <th class="text-muted small fw-semibold">BLUEPRINT ARTIFACT DETAILS</th>
+                        <th class="text-muted small fw-semibold" style="width: 220px;">TELEMETRY TIMESTAMPS</th>
+                        <th class="text-muted small fw-semibold" style="width: 120px;">STATE</th>
+                        <th class="pe-4 text-muted small fw-semibold" style="width: 120px;">OPERATION</th>
+                    </tr>
+                    </thead>
+                    <tbody id="ticketTableBody" class="text-dark small">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<script src="js/app.js"></script>
+</body>
+</html>

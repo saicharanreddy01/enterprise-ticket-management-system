@@ -1,0 +1,47 @@
+### Create a New Ticket (POST Request)
+POST http://localhost:8080/api/tickets
+Content-Type: application/json
+
+{
+  "title": "Server Ram Upgrade",
+  "description": "The production server requires a RAM upgrade to 32GB to avoid performance throttling.",
+  "status": "OPEN"
+}
+
+### Get All Stored Tickets (GET Request)
+GET http://localhost:8080/api/tickets
+
+### Get Filtered Tickets by Status (GET Request)
+GET http://localhost:8080/api/tickets/status/OPEN
+
+### Update an Existing Ticket (PUT Request)
+PUT http://localhost:8080/api/tickets/1
+Content-Type: application/json
+
+{
+  "title": "Server Ram Upgrade",
+  "description": "The production server requires a RAM upgrade to 32GB to avoid performance throttling.",
+  "status": "RESOLVED"
+}
+
+### Delete a Ticket by ID (DELETE Request)
+DELETE http://localhost:8080/api/tickets/1
+
+### Malicious Test: Create a Bad Ticket (Should Fail!)
+POST http://localhost:8080/api/tickets
+Content-Type: application/json
+
+{
+  "title": "  ",
+  "description": "Short",
+  "status": "OPEN"
+}
+
+### Test Case B: Fetch All Tickets Authenticated as a DEVELOPER
+GET http://localhost:8080/api/tickets
+Authorization: Basic dev_user dev123
+
+
+### Test Case C: Malicious Attempt - DEVELOPER Tries to DELETE a Ticket
+DELETE http://localhost:8080/api/tickets/1
+Authorization: Basic dev_user dev123
