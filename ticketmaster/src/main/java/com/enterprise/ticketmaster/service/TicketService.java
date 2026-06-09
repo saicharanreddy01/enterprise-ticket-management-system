@@ -3,7 +3,6 @@ package com.enterprise.ticketmaster.service;
 import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.repository.TicketRepository;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
 import java.util.List;
@@ -11,8 +10,11 @@ import java.util.List;
 @Service
 public class TicketService {
 
-    @Autowired
-    private TicketRepository ticketRepository; // Plugs in our database interface!
+    private final TicketRepository ticketRepository;
+
+    public TicketService(TicketRepository ticketRepository) {
+        this.ticketRepository = ticketRepository;
+    }
 
     // Save a ticket directly into the database table
     public Ticket createTicket(Ticket ticket) {
@@ -34,12 +36,12 @@ public class TicketService {
             existingTicket.setDescription(updatedTicketDetails.getDescription());
             existingTicket.setStatus(updatedTicketDetails.getStatus());
             return ticketRepository.save(existingTicket);
-        }).orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id)); // 👈 Changed here
+        }).orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
     }
 
     public void deleteTicket(Long id) {
         if (!ticketRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Ticket not found with id: " + id); // 👈 Changed here
+            throw new ResourceNotFoundException("Ticket not found with id: " + id);
         }
         ticketRepository.deleteById(id);
     }

@@ -7,7 +7,6 @@ import org.springframework.http.ResponseEntity;
 import com.enterprise.ticketmaster.model.Priority;
 import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.service.TicketService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import jakarta.validation.Valid;
 
@@ -17,8 +16,11 @@ import java.util.List;
 @RequestMapping("/api/tickets")
 public class TicketController {
 
-    @Autowired
-    private TicketService ticketService;
+    private final TicketService ticketService;
+
+    public TicketController(TicketService ticketService) {
+        this.ticketService = ticketService;
+    }
 
     @GetMapping
     public List<Ticket> getAllTickets() {
