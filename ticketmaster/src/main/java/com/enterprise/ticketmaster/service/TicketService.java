@@ -30,11 +30,15 @@ public class TicketService {
         return ticketRepository.findByStatus(status);
     }
 
-    public Ticket updateTicket(Long id, Ticket updatedTicketDetails) {
+    public Ticket updateTicket(Long id, Ticket updatedTicketDetails, String resolvedBy) {
         return ticketRepository.findById(id).map(existingTicket -> {
             existingTicket.setTitle(updatedTicketDetails.getTitle());
             existingTicket.setDescription(updatedTicketDetails.getDescription());
             existingTicket.setStatus(updatedTicketDetails.getStatus());
+            // Business logic lives here: if resolved, record who signed off
+            if (Status.RESOLVED.equals(updatedTicketDetails.getStatus()) && resolvedBy != null) {
+                existingTicket.setResolvedBy(resolvedBy);
+            }
             return ticketRepository.save(existingTicket);
         }).orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
     }

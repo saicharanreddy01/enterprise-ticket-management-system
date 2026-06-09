@@ -46,10 +46,8 @@ public class TicketController {
 
     @PutMapping("/{id}")
     public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @Valid @RequestBody Ticket updatedTicket, Authentication authentication) {
-        if (authentication != null && Status.RESOLVED.equals(updatedTicket.getStatus())) {
-            updatedTicket.setResolvedBy(authentication.getName());
-        }
-        return ResponseEntity.ok(ticketService.updateTicket(id, updatedTicket));
+        String username = authentication != null ? authentication.getName() : null;
+        return ResponseEntity.ok(ticketService.updateTicket(id, updatedTicket, username));
     }
 
     @DeleteMapping("/{id}")
