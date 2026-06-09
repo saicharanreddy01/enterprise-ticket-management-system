@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.service;
 
+import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.repository.TicketRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,7 +24,7 @@ public class TicketService {
         return ticketRepository.findAll();
     }
 
-    public List<Ticket> getTicketsByStatus(String status) {
+    public List<Ticket> getTicketsByStatus(Status status) {
         return ticketRepository.findByStatus(status);
     }
 

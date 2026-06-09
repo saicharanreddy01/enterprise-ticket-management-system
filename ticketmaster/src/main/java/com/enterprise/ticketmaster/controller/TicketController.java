@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.controller;
 
+import com.enterprise.ticketmaster.model.Status;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,14 +38,14 @@ public class TicketController {
     }
 
     @GetMapping("/status/{status}")
-    public List<Ticket> getTicketsByStatus(@PathVariable String status) {
+    public List<Ticket> getTicketsByStatus(@PathVariable Status status) {
         return ticketService.getTicketsByStatus(status);
     }
 
     @PutMapping("/{id}")
     public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @Valid @RequestBody Ticket updatedTicket, Authentication authentication) {
-        if (authentication != null && "RESOLVED".equals(updatedTicket.getStatus())) {
-            updatedTicket.setResolvedBy(authentication.getName()); // Tracks which admin signed off on it
+        if (authentication != null && Status.RESOLVED.equals(updatedTicket.getStatus())) {
+            updatedTicket.setResolvedBy(authentication.getName());
         }
         return ResponseEntity.ok(ticketService.updateTicket(id, updatedTicket));
     }

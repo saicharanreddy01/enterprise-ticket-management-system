@@ -27,8 +27,9 @@ public class Ticket {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String status = "OPEN"; // Defaults new entries to an active state
+    private Status status = Status.OPEN;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -57,7 +58,7 @@ public class Ticket {
         this.title = title;
         this.description = description;
         this.priority = priority;
-        this.status = "OPEN";
+        this.status = Status.OPEN;
     }
 
     // ==================== GETTERS AND SETTERS ====================
@@ -86,11 +87,11 @@ public class Ticket {
         this.description = description;
     }
 
-    public String getStatus() {
+    public Status getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(Status status) {
         this.status = status;
     }
 

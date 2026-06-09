@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.repository;
 
+import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -10,5 +11,5 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
 
     // Spring Boot parses this method name automatically and writes:
     // "SELECT * FROM tickets WHERE status = ?" under the hood!
-    List<Ticket> findByStatus(String status);
+    List<Ticket> findByStatus(Status status);
 }
