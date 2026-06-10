@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -17,12 +18,23 @@ import static org.springframework.security.config.Customizer.withDefaults;
 @EnableWebSecurity // Enables Spring Security web support
 public class SecurityConfig {
 
+    @Value("${app.security.dev.username}")
+    private String devUsername;
+
+    @Value("${app.security.dev.password}")
+    private String devPassword;
+
+    @Value("${app.security.admin.username}")
+    private String adminUsername;
+
+    @Value("${app.security.admin.password}")
+    private String adminPassword;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        // 💡 CRITICAL: Ensure static styles and script assets bypass the login wall completely!
                         .requestMatchers("/css/**", "/js/**", "/login.html").permitAll()
                         .requestMatchers("/", "/index.html").authenticated() // Require login for the core dashboard
                         .requestMatchers("/api/users/me").authenticated()
@@ -31,7 +43,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/tickets/**").hasAnyRole("DEVELOPER", "ADMIN")
                         .anyRequest().authenticated()
                 )
-                // 💡 SWAP BASIC AUTH FOR CUSTOM FORM AUTH:
                 .formLogin(form -> form
                         .loginPage("/login.html")             // URL of our custom login screen
                         .loginProcessingUrl("/perform_login") // POST endpoint Spring monitors automatically
@@ -49,16 +60,15 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        // 4. Set up hardcoded testing users in-memory with clear designated enterprise roles
         UserDetails developer = User.withDefaultPasswordEncoder()
-                .username("dev_user")
-                .password("dev123")
+                .username(devUsername)
+                .password(devPassword)
                 .roles("DEVELOPER")
                 .build();
 
         UserDetails admin = User.withDefaultPasswordEncoder()
-                .username("admin_user")
-                .password("admin123")
+                .username(adminUsername)
+                .password(adminPassword)
                 .roles("ADMIN")
                 .build();
 
