@@ -1,34 +1,28 @@
 package com.enterprise.ticketmaster.config;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.enterprise.ticketmaster.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-
 @Configuration
-@EnableWebSecurity // Enables Spring Security web support
+@EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${app.security.dev.username}")
-    private String devUsername;
+    private final UserRepository userRepository;
 
-    @Value("${app.security.dev.password}")
-    private String devPassword;
-
-    @Value("${app.security.admin.username}")
-    private String adminUsername;
-
-    @Value("${app.security.admin.password}")
-    private String adminPassword;
+    public SecurityConfig(UserRepository userRepository) {
+        this.userRepository = userRepository;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -36,7 +30,9 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/login.html").permitAll()
-                        .requestMatchers("/", "/index.html").authenticated() // Require login for the core dashboard
+                        // Registration endpoint must be open — user isn't logged in yet
+                        .requestMatchers("/api/auth/register").permitAll()
+                        .requestMatchers("/", "/index.html").authenticated()
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/tickets/**").hasRole("ADMIN")
@@ -44,8 +40,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form
-                        .loginPage("/login.html")             // URL of our custom login screen
-                        .loginProcessingUrl("/perform_login") // POST endpoint Spring monitors automatically
+                        .loginPage("/login.html")
+                        .loginProcessingUrl("/perform_login")
                         .defaultSuccessUrl("/index.html", true)
                         .permitAll()
                 )
@@ -60,18 +56,24 @@ public class SecurityConfig {
 
     @Bean
     public UserDetailsService userDetailsService() {
-        UserDetails developer = User.withDefaultPasswordEncoder()
-                .username(devUsername)
-                .password(devPassword)
-                .roles("DEVELOPER")
-                .build();
+        return username -> {
+            com.enterprise.ticketmaster.model.User user = userRepository
+                    .findByUsername(username)
+                    .orElseThrow(() -> new UsernameNotFoundException(
+                            "No user found with username: " + username));
 
-        UserDetails admin = User.withDefaultPasswordEncoder()
-                .username(adminUsername)
-                .password(adminPassword)
-                .roles("ADMIN")
-                .build();
+            // Spring Security needs roles prefixed with ROLE_
+            // hasRole("ADMIN") in SecurityConfig matches ROLE_ADMIN here
+            return org.springframework.security.core.userdetails.User
+                    .withUsername(user.getUsername())
+                    .password(user.getPassword())
+                    .roles(user.getRole())
+                    .build();
+        };
+    }
 
-        return new InMemoryUserDetailsManager(developer, admin);
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
     }
 }
