@@ -168,17 +168,6 @@ Content-Type: application/json
 
 ---
 
-## Planned Improvements
-
--  Replace H2 with MySQL/PostgreSQL for persistent storage
--  Add `Status` enum (OPEN, IN_PROGRESS, RESOLVED, CLOSED) to replace raw String
--  Switch from field injection (`@Autowired`) to constructor injection
--  Persist users in a database with a registration endpoint
--  Add unit and integration tests with MockMvc
--  Migrate credentials to environment variables / `application.properties`
-
----
-
 ## Author
 
 **P. Sai Charan Reddy** — B.Tech CSE(AI), MITS (2027)  
