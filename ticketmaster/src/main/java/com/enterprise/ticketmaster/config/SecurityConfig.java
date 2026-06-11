@@ -30,9 +30,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/css/**", "/js/**", "/login.html").permitAll()
-                        // Registration endpoint must be open — user isn't logged in yet
-                        .requestMatchers("/api/auth/register").permitAll()
                         .requestMatchers("/", "/index.html").authenticated()
+                        .requestMatchers("/api/auth/register").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/users").hasRole("ADMIN")
+                        .requestMatchers("/api/auth/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/tickets/**").hasRole("ADMIN")

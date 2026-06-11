@@ -28,6 +28,10 @@ function switchView(targetView) {
     } else if (targetView === 'CONSOLE') {
         document.getElementById('viewConsole').classList.add('active-view');
         document.getElementById('linkConsole').classList.add('active');
+    } else if (targetView === 'ADMIN') {
+        document.getElementById('viewAdmin').classList.add('active-view');
+        document.getElementById('linkAdmin').classList.add('active');
+        loadUsersTable();
     }
 }
 
@@ -50,8 +54,10 @@ async function checkUserProfile() {
 
         if (currentUserRoles.includes('ROLE_ADMIN')) {
             document.getElementById('currentUserRole').className = "badge bg-danger-subtle text-danger border border-danger-subtle ms-2 small";
+            document.getElementById('linkAdmin').style.display = 'flex';
         } else {
             document.getElementById('currentUserRole').className = "badge bg-primary-subtle text-primary border border-primary-subtle ms-2 small";
+            document.getElementById('linkAdmin').style.display = 'none';
         }
 
         refreshDataPipeline();
@@ -177,8 +183,8 @@ document.addEventListener("DOMContentLoaded", () => {
             try {
                 const response = await fetch('/api/tickets', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title, description, status: 'OPEN', priority: priority })
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title, description, status: 'OPEN', priority: priority})
                 });
 
                 if (response.ok) {
@@ -204,4 +210,93 @@ document.addEventListener("DOMContentLoaded", () => {
     switchView('DASHBOARD');
     // Execute core profile evaluation sequence maps
     checkUserProfile();
+
 });
+
+// 9. Toggle password visibility
+function togglePasswordVisibility() {
+    const input = document.getElementById('newPassword');
+    const eyeIcon = document.getElementById('eyeIcon');
+    const isHidden = input.type === 'password';
+    input.type = isHidden ? 'text' : 'password';
+    eyeIcon.innerHTML = isHidden
+        ? `<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>`
+        : `<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>`;
+}
+
+// 10. Load all users into the admin users table
+async function loadUsersTable() {
+    try {
+        const response = await fetch('/api/auth/users');
+        const users = await response.json();
+        const tbody = document.getElementById('usersTableBody');
+        tbody.innerHTML = '';
+        if (users.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center text-muted py-4">No users found.</td></tr>`;
+            return;
+        }
+        users.forEach(user => {
+            const roleBadge = user.role === 'ADMIN'
+                ? 'bg-danger-subtle text-danger border border-danger-subtle'
+                : 'bg-primary-subtle text-primary border border-primary-subtle';
+            tbody.innerHTML += `
+                <tr style="border-bottom: 1px solid #F1F3F4;">
+                    <td class="ps-4 text-muted"><strong>#${user.id}</strong></td>
+                    <td class="fw-semibold">${user.username}</td>
+                    <td><span class="badge ${roleBadge} badge-pill-flat">${user.role}</span></td>
+                    <td class="pe-4">
+                        <button class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:11px;"
+                            onclick="deleteUser(${user.id}, '${user.username}')">Delete</button>
+                    </td>
+                </tr>`;
+        });
+    } catch (error) {
+        console.error('Error loading users:', error);
+    }
+}
+
+// 11. Create a new user from the admin panel form
+async function createUser() {
+    const username = document.getElementById('newUsername').value.trim();
+    const password = document.getElementById('newPassword').value.trim();
+    const role = document.getElementById('newRole').value;
+    const msgEl = document.getElementById('createUserMsg');
+    if (!username || !password) {
+        msgEl.innerHTML = `<span class="text-danger">Username and password are required.</span>`;
+        return;
+    }
+    try {
+        const response = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, role })
+        });
+        const text = await response.text();
+        if (response.ok) {
+            msgEl.innerHTML = `<span class="text-success">✓ ${text}</span>`;
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            loadUsersTable();
+        } else {
+            msgEl.innerHTML = `<span class="text-danger">✗ ${text}</span>`;
+        }
+    } catch (error) {
+        msgEl.innerHTML = `<span class="text-danger">Network error. Try again.</span>`;
+    }
+}
+
+// 12. Delete a user from the admin panel
+async function deleteUser(id, username) {
+    if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
+    try {
+        const response = await fetch(`/api/auth/users/${id}`, { method: 'DELETE' });
+        const text = await response.text();
+        if (response.ok) {
+            loadUsersTable();
+        } else {
+            alert(`Error: ${text}`);
+        }
+    } catch (error) {
+        console.error('Error deleting user:', error);
+    }
+}
