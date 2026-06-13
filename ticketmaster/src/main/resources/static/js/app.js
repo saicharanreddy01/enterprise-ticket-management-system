@@ -2,12 +2,29 @@ let currentUserRoles = [];
 let allTicketsCache = [];
 let currentFilterState = 'ALL';
 
+// ── JWT Helper ───────────────────────────────────────────────
+// Single function that adds the Authorization header to every fetch call
+function authHeaders(extra = {}) {
+    const token = localStorage.getItem('jwt_token');
+    return {
+        'Content-Type': 'application/json',
+        'Authorization': token ? `Bearer ${token}` : '',
+        ...extra
+    };
+}
+
+// If no token in localStorage, redirect to login immediately
+function guardAuth() {
+    if (!localStorage.getItem('jwt_token')) {
+        window.location.href = '/login.html';
+    }
+}
+
 // 1. Live Operational Clock Tracker
 function updateClock() {
     const now = new Date();
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
     const formattedDate = `${days[now.getDay()]} , ${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()} , ${now.toTimeString().split(' ')[0]}`;
     const clockElement = document.getElementById('liveClock');
     if (clockElement) clockElement.innerText = formattedDate;
@@ -38,9 +55,13 @@ function switchView(targetView) {
 // 3. User Credentials Context Query Verification
 async function checkUserProfile() {
     try {
-        const response = await fetch('/api/users/me');
+        const response = await fetch('/api/users/me', {
+            headers: authHeaders()
+        });
         if (response.status === 401) {
-            window.location.reload();
+            // Token expired or invalid — clear and redirect to login
+            localStorage.clear();
+            window.location.href = '/login.html';
             return;
         }
         const data = await response.json();
@@ -70,7 +91,9 @@ async function checkUserProfile() {
 // 4. Synchronization Pipeline
 async function refreshDataPipeline() {
     try {
-        const response = await fetch('/api/tickets');
+        const response = await fetch('/api/tickets', {
+            headers: authHeaders()
+        });
         allTicketsCache = await response.json();
         computeMetricsWidget();
         renderTableGrid();
@@ -84,7 +107,6 @@ function computeMetricsWidget() {
     const total = allTicketsCache.length;
     const open = allTicketsCache.filter(t => t.status === 'OPEN').length;
     const resolved = allTicketsCache.filter(t => t.status === 'RESOLVED').length;
-
     document.getElementById('metricTotal').innerText = total;
     document.getElementById('metricOpen').innerText = open;
     document.getElementById('metricResolved').innerText = resolved;
@@ -93,19 +115,15 @@ function computeMetricsWidget() {
 // 6. Pill Set Segment Switches
 function filterGrid(statusType) {
     currentFilterState = statusType;
-
     const btnAll = document.getElementById('filterAll');
     const btnOpen = document.getElementById('filterOpen');
     const btnResolved = document.getElementById('filterResolved');
-
     btnAll.className = "fixed-filter-btn btn-light text-secondary bg-transparent";
     btnOpen.className = "fixed-filter-btn btn-light text-secondary bg-transparent";
     btnResolved.className = "fixed-filter-btn btn-light text-secondary bg-transparent";
-
     if (statusType === 'ALL') btnAll.className = "fixed-filter-btn btn-google-primary rounded text-white";
     if (statusType === 'OPEN') btnOpen.className = "fixed-filter-btn btn-google-primary rounded text-white";
     if (statusType === 'RESOLVED') btnResolved.className = "fixed-filter-btn btn-google-primary rounded text-white";
-
     renderTableGrid();
 }
 
@@ -114,7 +132,6 @@ function renderTableGrid() {
     const tableBody = document.getElementById('ticketTableBody');
     if (!tableBody) return;
     tableBody.innerHTML = '';
-
     const isAdmin = currentUserRoles.includes('ROLE_ADMIN');
 
     const filteredTickets = allTicketsCache.filter(ticket => {
@@ -131,24 +148,20 @@ function renderTableGrid() {
         const isResolved = ticket.status === 'RESOLVED';
         const statusBadge = isResolved ? 'bg-success-subtle text-success border border-success-subtle' : 'bg-warning-subtle text-warning border border-warning-subtle';
         const formattedTime = ticket.createdAt ? new Date(ticket.createdAt).toLocaleString() : 'N/A';
-
         let priorityBadge = 'bg-secondary-subtle text-secondary border';
         if (ticket.priority === 'HIGH') priorityBadge = 'bg-danger-subtle text-danger border border-danger-subtle';
         if (ticket.priority === 'MEDIUM') priorityBadge = 'bg-info-subtle text-info border border-info-subtle';
-
         const raisedByStamp = ticket.raisedBy ? ticket.raisedBy : 'System';
         let auditorLogs = `<div class="text-muted mt-1" style="font-size: 11px;">Raised by: <strong>${raisedByStamp}</strong></div>`;
         if (isResolved && ticket.resolvedBy) {
             auditorLogs += `<div class="text-success" style="font-size: 11px;">Resolved by: <strong>${ticket.resolvedBy}</strong></div>`;
         }
-
         let operationsAction = '-';
         if (isAdmin) {
             operationsAction = isResolved
                 ? `<span class="text-muted small">Done ✓</span>`
                 : `<button class="btn btn-google-outline py-0 px-2" style="font-size: 11px; height: 24px; color: #4F46E5; border-color: #DADCE0;" onclick="resolveTicket(${ticket.id}, '${ticket.title}', '${ticket.description}', '${ticket.priority}')">Resolve</button>`;
         }
-
         tableBody.innerHTML += `
             <tr style="border-bottom: 1px solid #F1F3F4;">
                 <td class="ps-4 text-muted"><strong>#${ticket.id}</strong></td>
@@ -157,21 +170,20 @@ function renderTableGrid() {
                     <span class="fw-semibold text-dark" style="font-size: 0.95rem;">${ticket.title}</span><br>
                     <span class="text-muted text-xs d-block mt-1" style="max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${ticket.description}</span>
                 </td>
-                <td>
-                    <span class="text-dark">${formattedTime}</span>
-                    ${auditorLogs}
-                </td>
+                <td><span class="text-dark">${formattedTime}</span>${auditorLogs}</td>
                 <td><span class="badge ${statusBadge} badge-pill-flat">${ticket.status}</span></td>
                 <td class="pe-4">${operationsAction}</td>
-            </tr>
-        `;
+            </tr>`;
     });
 }
 
-// 8. Dom Lifecycle Scope Initialization Binding Event Hooks
+// 8. Dom Lifecycle Scope Initialization
 document.addEventListener("DOMContentLoaded", () => {
+    // Guard — redirect to login if no token
+    guardAuth();
+
     const ticketForm = document.getElementById('ticketForm');
-    const logoutBtn = document.getElementById('logoutBtn'); // Variable initialization mapped correctly inside DOM loop scope!
+    const logoutBtn = document.getElementById('logoutBtn');
 
     if (ticketForm) {
         ticketForm.addEventListener('submit', async (e) => {
@@ -179,14 +191,12 @@ document.addEventListener("DOMContentLoaded", () => {
             const title = document.getElementById('title').value;
             const description = document.getElementById('description').value;
             const priority = document.getElementById('priority').value;
-
             try {
                 const response = await fetch('/api/tickets', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({title, description, status: 'OPEN', priority: priority})
+                    headers: authHeaders(),
+                    body: JSON.stringify({ title, description, status: 'OPEN', priority })
                 });
-
                 if (response.ok) {
                     ticketForm.reset();
                     refreshDataPipeline();
@@ -202,15 +212,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (logoutBtn) {
         logoutBtn.addEventListener('click', () => {
-            // Smoothly bounce user straight to backend session invalidation route mapping
-            window.location.href = "/perform_logout";
+            // Clear JWT token and redirect to login
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('jwt_username');
+            localStorage.removeItem('jwt_role');
+            window.location.href = '/login.html';
         });
     }
 
     switchView('DASHBOARD');
-    // Execute core profile evaluation sequence maps
     checkUserProfile();
-
 });
 
 // 9. Toggle password visibility
@@ -227,7 +238,9 @@ function togglePasswordVisibility() {
 // 10. Load all users into the admin users table
 async function loadUsersTable() {
     try {
-        const response = await fetch('/api/auth/users');
+        const response = await fetch('/api/auth/users', {
+            headers: authHeaders()
+        });
         const users = await response.json();
         const tbody = document.getElementById('usersTableBody');
         tbody.innerHTML = '';
@@ -268,7 +281,7 @@ async function createUser() {
     try {
         const response = await fetch('/api/auth/register', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: authHeaders(),
             body: JSON.stringify({ username, password, role })
         });
         const text = await response.text();
@@ -289,7 +302,10 @@ async function createUser() {
 async function deleteUser(id, username) {
     if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
     try {
-        const response = await fetch(`/api/auth/users/${id}`, { method: 'DELETE' });
+        const response = await fetch(`/api/auth/users/${id}`, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
         const text = await response.text();
         if (response.ok) {
             loadUsersTable();

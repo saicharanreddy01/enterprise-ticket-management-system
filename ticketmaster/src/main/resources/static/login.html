@@ -20,18 +20,66 @@
         <span class="text-muted small">Enterprise Access Management Gateway</span>
     </div>
 
-    <form action="/perform_login" method="POST">
-        <div class="mb-3">
-            <label class="form-label small fw-semibold text-secondary">Username</label>
-            <input type="text" name="username" class="form-control" placeholder="e.g., dev_user" required>
-        </div>
-        <div class="mb-4">
-            <label class="form-label small fw-semibold text-secondary">Password</label>
-            <input type="password" name="password" class="form-control" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="btn btn-google w-100 py-2 rounded fw-semibold">Sign In</button>
-    </form>
+    <div class="mb-3">
+        <label class="form-label small fw-semibold text-secondary">Username</label>
+        <input type="text" id="username" class="form-control" placeholder="e.g., dev_user" required>
+    </div>
+    <div class="mb-4">
+        <label class="form-label small fw-semibold text-secondary">Password</label>
+        <input type="password" id="password" class="form-control" placeholder="••••••••" required>
+    </div>
+    <div id="errorMsg" class="text-danger small mb-3 text-center" style="display:none"></div>
+    <button onclick="login()" class="btn btn-google w-100 py-2 rounded fw-semibold">Sign In</button>
+
 </div>
+
+<script>
+    // If already logged in, skip login page
+    if (localStorage.getItem('jwt_token')) {
+        window.location.href = '/index.html';
+    }
+
+    async function login() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const errorMsg = document.getElementById('errorMsg');
+
+        if (!username || !password) {
+            errorMsg.textContent = 'Please enter username and password.';
+            errorMsg.style.display = 'block';
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Store token and user info in localStorage
+                localStorage.setItem('jwt_token', data.token);
+                localStorage.setItem('jwt_username', data.username);
+                localStorage.setItem('jwt_role', data.role);
+                // Redirect to dashboard
+                window.location.href = '/index.html';
+            } else {
+                errorMsg.textContent = 'Invalid username or password.';
+                errorMsg.style.display = 'block';
+            }
+        } catch (error) {
+            errorMsg.textContent = 'Connection error. Is the server running?';
+            errorMsg.style.display = 'block';
+        }
+    }
+
+    // Allow pressing Enter to submit
+    document.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') login();
+    });
+</script>
 
 </body>
 </html>
