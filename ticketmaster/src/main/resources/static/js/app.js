@@ -177,6 +177,59 @@ function renderTableGrid() {
     });
 }
 
+// 7b. Resolve Ticket — opens confirmation modal, then submits PUT request
+let ticketIdPendingResolve = null;
+
+function resolveTicket(id, title, description, priority) {
+    ticketIdPendingResolve = id;
+
+    document.getElementById('resolveModalTitle').innerText = title;
+    document.getElementById('resolveModalDescription').innerText = description;
+
+    const priorityBadge = document.getElementById('resolveModalPriority');
+    priorityBadge.innerText = priority;
+    priorityBadge.className = 'badge mt-2 ' +
+        (priority === 'HIGH' ? 'bg-danger-subtle text-danger border border-danger-subtle' :
+            priority === 'MEDIUM' ? 'bg-info-subtle text-info border border-info-subtle' :
+                'bg-secondary-subtle text-secondary border');
+
+    const modal = new bootstrap.Modal(document.getElementById('resolveModal'));
+    modal.show();
+}
+
+async function confirmResolve() {
+    if (!ticketIdPendingResolve) return;
+
+    const ticket = allTicketsCache.find(t => t.id === ticketIdPendingResolve);
+    if (!ticket) return;
+
+    try {
+        const response = await fetch(`/api/tickets/${ticketIdPendingResolve}`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                title: ticket.title,
+                description: ticket.description,
+                status: 'RESOLVED',
+                priority: ticket.priority
+            })
+        });
+
+        if (response.ok) {
+            const modal = bootstrap.Modal.getInstance(document.getElementById('resolveModal'));
+            modal.hide();
+            refreshDataPipeline();
+        } else {
+            alert('Failed to resolve ticket. You may not have permission.');
+        }
+    } catch (error) {
+        console.error('Error resolving ticket:', error);
+        alert('Network error. Please try again.');
+    }
+
+    ticketIdPendingResolve = null;
+}
+
 // 8. Dom Lifecycle Scope Initialization
 document.addEventListener("DOMContentLoaded", () => {
     // Guard — redirect to login if no token
@@ -218,6 +271,11 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem('jwt_role');
             window.location.href = '/login.html';
         });
+    }
+
+    const confirmResolveBtn = document.getElementById('confirmResolveBtn');
+    if (confirmResolveBtn) {
+        confirmResolveBtn.addEventListener('click', confirmResolve);
     }
 
     switchView('DASHBOARD');
