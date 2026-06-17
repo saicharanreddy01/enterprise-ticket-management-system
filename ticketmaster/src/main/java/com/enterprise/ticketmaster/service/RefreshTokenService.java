@@ -35,22 +35,21 @@ public class RefreshTokenService {
         var user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        // 2. Enforce 1:1 relationship (delete old token if one exists)
-        refreshTokenRepository.deleteByUser(user);
+        // 2. THE UPSERT PATTERN: Find the existing row, OR create a new one if it's their first login
+        RefreshToken refreshToken = refreshTokenRepository.findByUser(user)
+                .orElse(new RefreshToken());
 
-        // 3. Create the new 24-hour token
-        RefreshToken refreshToken = new RefreshToken();
+        // 3. Update the values
         refreshToken.setUser(user);
         refreshToken.setExpiryDate(Instant.now().plusMillis(refreshTokenDurationMs));
-        refreshToken.setToken(UUID.randomUUID().toString()); // Secure random string, NOT a JWT
+        refreshToken.setToken(UUID.randomUUID().toString());
 
+        // 4. Save (Hibernate will smartly UPDATE if it existed, or INSERT if it was new)
         return refreshTokenRepository.save(refreshToken);
     }
 
     public RefreshToken verifyExpiration(RefreshToken token) {
-        // Compare token expiry exact timestamp with the current UTC time
         if (token.getExpiryDate().compareTo(Instant.now()) < 0) {
-            // If expired, wipe it from the database immediately
             refreshTokenRepository.delete(token);
             throw new RuntimeException("Refresh token has expired. Please log in again.");
         }

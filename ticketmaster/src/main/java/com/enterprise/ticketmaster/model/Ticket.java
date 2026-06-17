@@ -8,6 +8,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "tickets")
@@ -29,16 +30,84 @@ public class Ticket {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status = Status.OPEN;
+    private Status status = Status.NEW;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Priority priority = Priority.MEDIUM; // Integrates our data type safety Enum
 
+    @ManyToOne
+    @JoinColumn(name = "category_id")
+    private Category category;
+
+    @ManyToOne
+    @JoinColumn(name = "sub_category_id")
+    private SubCategory subCategory;
+
+    @OneToMany(mappedBy = "ticket", cascade = CascadeType.ALL, orphanRemoval = true)
+    private java.util.List<Comment> comments = new java.util.ArrayList<>();
+
+    public Category getCategory() {
+        return category;
+    }
+
+    public void setCategory(Category category) {
+        this.category = category;
+    }
+
+    public SubCategory getSubCategory() {
+        return subCategory;
+    }
+
+    public void setSubCategory(SubCategory subCategory) {
+        this.subCategory = subCategory;
+    }
+
+    public List<Comment> getComments() {
+        return comments;
+    }
+
+    public void setComments(List<Comment> comments) {
+        this.comments = comments;
+    }
+
     @Column(nullable = false, updatable = false)
     private String raisedBy; // Captures the identity of the ticket creator
 
     private String resolvedBy; // Tracks which administrator resolved the issue
+    @Column(name = "assigned_to")
+    private String assignedTo; // e.g., "L2_NETWORK_TEAM", "SECURITY_QUEUE", or "DEFAULT_TRIAGE"
+
+    @Column(name = "sla_due_date")
+    private java.time.LocalDateTime slaDueDate;
+
+    public boolean isSlaBreached() {
+        return slaBreached;
+    }
+
+    public void setSlaBreached(boolean slaBreached) {
+        this.slaBreached = slaBreached;
+    }
+
+    public LocalDateTime getSlaDueDate() {
+        return slaDueDate;
+    }
+
+    public void setSlaDueDate(LocalDateTime slaDueDate) {
+        this.slaDueDate = slaDueDate;
+    }
+
+    @Column(name = "sla_breached")
+
+
+    private boolean slaBreached = false;
+    public String getAssignedTo() {
+        return assignedTo;
+    }
+
+    public void setAssignedTo(String assignedTo) {
+        this.assignedTo = assignedTo;
+    }
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

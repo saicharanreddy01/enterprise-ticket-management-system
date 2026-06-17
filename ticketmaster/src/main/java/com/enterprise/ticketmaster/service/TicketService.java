@@ -11,13 +11,19 @@ import java.util.List;
 public class TicketService {
 
     private final TicketRepository ticketRepository;
+    private final RoutingEngineService routingEngine;
+    private final SlaManagementService slaEngine;
 
-    public TicketService(TicketRepository ticketRepository) {
+    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine, SlaManagementService slaEngine) {
         this.ticketRepository = ticketRepository;
+        this.routingEngine = routingEngine;
+        this.slaEngine = slaEngine;
     }
 
     // Save a ticket directly into the database table
     public Ticket createTicket(Ticket ticket) {
+        routingEngine.routeTicket(ticket);
+        slaEngine.assignSla(ticket);
         return ticketRepository.save(ticket);
     }
 

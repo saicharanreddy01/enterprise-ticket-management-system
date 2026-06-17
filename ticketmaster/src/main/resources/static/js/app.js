@@ -20,6 +20,52 @@ function guardAuth() {
     }
 }
 
+// --- The Sliding Session Interceptor ---
+// Wraps standard fetch calls to automatically handle 401 expirations silently
+async function fetchWithAuth(url, options = {}) {
+    // 1. Try the standard request first
+    let response = await fetch(url, options);
+
+    // 2. If it fails due to a dead 15-minute Access Token...
+    if (response.status === 401) {
+        const refreshToken = localStorage.getItem('jwt_refresh_token');
+
+        if (refreshToken) {
+            // 3. Silently ask the backend for a new Access Token
+            const refreshResponse = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken })
+            });
+
+            if (refreshResponse.ok) {
+                const data = await refreshResponse.json();
+
+                // 4. Update the browser's memory with the fresh tokens
+                localStorage.setItem('jwt_token', data.token);
+                if (data.refreshToken) {
+                    localStorage.setItem('jwt_refresh_token', data.refreshToken);
+                }
+
+                // 5. Swap the dead token for the fresh one in the original request's headers
+                if (options.headers) {
+                    options.headers['Authorization'] = `Bearer ${data.token}`;
+                }
+
+                // 6. Retry the exact same request the user was trying to make!
+                return await fetch(url, options);
+            }
+        }
+
+        // 7. Failsafe: If the Refresh Token is also dead, or an admin deleted it, boot the user
+        localStorage.clear();
+        window.location.href = '/login.html';
+    }
+
+    // If it was never 401, just return the normal response
+    return response;
+}
+
 // 1. Live Operational Clock Tracker
 function updateClock() {
     const now = new Date();
@@ -55,7 +101,7 @@ function switchView(targetView) {
 // 3. User Credentials Context Query Verification
 async function checkUserProfile() {
     try {
-        const response = await fetch('/api/users/me', {
+        const response = await fetchWithAuth('/api/users/me', {
             headers: authHeaders()
         });
         if (response.status === 401) {
@@ -91,7 +137,7 @@ async function checkUserProfile() {
 // 4. Synchronization Pipeline
 async function refreshDataPipeline() {
     try {
-        const response = await fetch('/api/tickets', {
+        const response = await fetchWithAuth('/api/tickets', {
             headers: authHeaders()
         });
         allTicketsCache = await response.json();
@@ -245,7 +291,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const description = document.getElementById('description').value;
             const priority = document.getElementById('priority').value;
             try {
-                const response = await fetch('/api/tickets', {
+                const response = await fetchWithAuth('/api/tickets', {
                     method: 'POST',
                     headers: authHeaders(),
                     body: JSON.stringify({ title, description, status: 'OPEN', priority })
@@ -269,6 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
             localStorage.removeItem('jwt_token');
             localStorage.removeItem('jwt_username');
             localStorage.removeItem('jwt_role');
+            localStorage.removeItem('jwt_refresh_token');
             window.location.href = '/login.html';
         });
     }
@@ -296,7 +343,7 @@ function togglePasswordVisibility() {
 // 10. Load all users into the admin users table
 async function loadUsersTable() {
     try {
-        const response = await fetch('/api/auth/users', {
+        const response = await fetchWithAuth('/api/auth/users', {
             headers: authHeaders()
         });
         const users = await response.json();
@@ -337,7 +384,7 @@ async function createUser() {
         return;
     }
     try {
-        const response = await fetch('/api/auth/register', {
+        const response = await fetchWithAuth('/api/auth/register', {
             method: 'POST',
             headers: authHeaders(),
             body: JSON.stringify({ username, password, role })
@@ -360,7 +407,7 @@ async function createUser() {
 async function deleteUser(id, username) {
     if (!confirm(`Are you sure you want to delete user "${username}"?`)) return;
     try {
-        const response = await fetch(`/api/auth/users/${id}`, {
+        const response = await fetchWithAuth(`/api/auth/users/${id}`, {
             method: 'DELETE',
             headers: authHeaders()
         });

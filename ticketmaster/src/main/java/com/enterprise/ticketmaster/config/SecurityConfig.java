@@ -33,14 +33,11 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-
-                // Switch to stateless — no sessions, no cookies
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints — no token needed
-                        .requestMatchers("/css/**", "/js/**", "/login.html", "/index.html").permitAll()
+                        .requestMatchers("/css/**", "/js/**", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
 
                         // Admin only
@@ -55,12 +52,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/tickets/**").hasAnyRole("DEVELOPER", "ADMIN")
                         .anyRequest().authenticated()
                 )
-
-                // Remove form login and logout — JWT handles auth now
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout.disable())
-
-                // Register JWT filter — runs before Spring's auth filter
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -82,14 +75,12 @@ public class SecurityConfig {
         };
     }
 
-    // Needed by AuthController to verify credentials at login
     @Bean
     public AuthenticationManager authenticationManager(
             AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-    // Wires UserDetailsService + PasswordEncoder together for authentication
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();

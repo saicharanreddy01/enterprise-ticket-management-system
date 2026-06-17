@@ -10,9 +10,11 @@ import java.util.Optional;
 @Repository
 public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long> {
 
-    // Allows us to find a token object just by providing the raw string
     Optional<RefreshToken> findByToken(String token);
 
-    // Allows us to instantly wipe a user's session from the database (The "Kill Switch")
+    // Finds a token linked to a specific user (Used for the Upsert pattern)
+    Optional<RefreshToken> findByUser(User user);
+
+    // Standard Spring Data derived delete
     void deleteByUser(User user);
 }

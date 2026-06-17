@@ -12,4 +12,10 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     // Spring Boot parses this method name automatically and writes:
     // "SELECT * FROM tickets WHERE status = ?" under the hood!
     List<Ticket> findByStatus(Status status);
+
+    // Finds active tickets that just missed their deadline
+    java.util.List<Ticket> findBySlaBreachedFalseAndStatusNotInAndSlaDueDateBefore(
+            java.util.Collection<Status> statuses,
+            java.time.LocalDateTime now
+    );
 }

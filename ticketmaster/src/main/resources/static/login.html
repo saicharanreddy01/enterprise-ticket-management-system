@@ -61,6 +61,7 @@
                 const data = await response.json();
                 // Store token and user info in localStorage
                 localStorage.setItem('jwt_token', data.token);
+                localStorage.setItem('jwt_refresh_token', data.refreshToken);
                 localStorage.setItem('jwt_username', data.username);
                 localStorage.setItem('jwt_role', data.role);
                 // Redirect to dashboard
