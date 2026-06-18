@@ -33,27 +33,29 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints — no token needed
-                        .requestMatchers("/css/**", "/js/**", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
+
+                        // 1. PUBLIC FRONTEND ASSETS (Browsers cannot send JWTs for HTML/CSS files)
+                        .requestMatchers("/css/**", "/js/**", "/landing.html", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
+
+                        // 2. PUBLIC AUTH APIs (So users can actually log in)
                         .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
 
-                        // Admin only
-                        .requestMatchers("/api/auth/register").hasRole("ADMIN")
-                        .requestMatchers("/api/auth/users").hasRole("ADMIN")
-                        .requestMatchers("/api/auth/users/**").hasRole("ADMIN")
-
-                        // Authenticated users
-                        .requestMatchers("/api/users/me").authenticated()
+                        // 3. RESTRICTED ADMIN APIs (Access Management & Deletion)
+                        .requestMatchers("/api/auth/register", "/api/auth/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/tickets/**").hasRole("ADMIN")
-                        .requestMatchers("/api/tickets/**").hasAnyRole("DEVELOPER", "ADMIN")
+
+                        // 4. AUTHENTICATED WORKFLOW APIs (Both Admins and Developers)
+                        .requestMatchers("/api/tickets/**").authenticated()
+                        .requestMatchers("/api/users/me").authenticated()
+
+                        // 5. CATCH-ALL (Lock down anything we forgot)
                         .anyRequest().authenticated()
                 )
                 .formLogin(form -> form.disable())
                 .logout(logout -> logout.disable())
+                // Register our custom JWT filter exactly once
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

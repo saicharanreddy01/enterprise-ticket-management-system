@@ -81,11 +81,12 @@ public class Ticket {
     @Column(name = "sla_due_date")
     private java.time.LocalDateTime slaDueDate;
 
-    public boolean isSlaBreached() {
-        return slaBreached;
+    public Boolean getSlaBreached() {
+        // If the database has NULL (old tickets), safely return false instead of crashing
+        return slaBreached != null ? slaBreached : false;
     }
 
-    public void setSlaBreached(boolean slaBreached) {
+    public void setSlaBreached(Boolean slaBreached) {
         this.slaBreached = slaBreached;
     }
 
@@ -98,9 +99,9 @@ public class Ticket {
     }
 
     @Column(name = "sla_breached")
+    private Boolean slaBreached = false;
 
 
-    private boolean slaBreached = false;
     public String getAssignedTo() {
         return assignedTo;
     }

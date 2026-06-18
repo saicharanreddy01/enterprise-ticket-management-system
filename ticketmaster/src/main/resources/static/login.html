@@ -3,50 +3,108 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ticketmaster Portal - Sign In</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Sign in - Ticketmaster</title>
+    <link rel="stylesheet" href="/css/styles.css">
     <style>
-        body { background-color: #F3F4F6; font-family: 'Roboto', sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        .login-card { background: white; border: 1px solid #DADCE0; border-radius: 12px; padding: 2.5rem; width: 100%; max-width: 400px; }
-        .btn-google { background-color: #4F46E5; color: white; border: none; font-weight: 500; }
-        .btn-google:hover { background-color: #4338CA; color: white; }
+        .login-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 24px;
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .auth-header h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-top: 16px;
+            margin-bottom: 8px;
+        }
+
+        .auth-header p {
+            font-size: 16px;
+            font-weight: 400;
+            color: var(--g-text-main);
+        }
+
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 48px;
+        }
+
+        #loginError {
+            display: none;
+            color: var(--g-red);
+            font-size: 14px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
     </style>
 </head>
 <body>
 
-<div class="login-card shadow-sm">
-    <div class="text-center mb-4">
-        <h4 class="fw-bold text-dark m-0">Ticketmaster</h4>
-        <span class="text-muted small">Enterprise Access Management Gateway</span>
-    </div>
+<div class="ethereal-bg"></div>
 
-    <div class="mb-3">
-        <label class="form-label small fw-semibold text-secondary">Username</label>
-        <input type="text" id="username" class="form-control" placeholder="e.g., dev_user" required>
-    </div>
-    <div class="mb-4">
-        <label class="form-label small fw-semibold text-secondary">Password</label>
-        <input type="password" id="password" class="form-control" placeholder="••••••••" required>
-    </div>
-    <div id="errorMsg" class="text-danger small mb-3 text-center" style="display:none"></div>
-    <button onclick="login()" class="btn btn-google w-100 py-2 rounded fw-semibold">Sign In</button>
+<div class="login-wrapper">
+    <div class="g-card">
 
+        <div class="auth-header">
+            <span class="material-symbols-rounded" style="color: var(--g-blue); font-size: 36px;">confirmation_number</span>
+            <h1>Sign in</h1>
+            <p>Use your Enterprise Account</p>
+        </div>
+
+        <div id="errorContainer" style="display: none; margin-bottom: 24px;">
+            <div style="display: flex; align-items: center; gap: 12px; color: var(--g-red); font-size: 14px;">
+                <span class="material-symbols-rounded" style="font-size: 20px;">error</span>
+                <span id="errorMessage">Invalid credentials.</span>
+            </div>
+        </div>
+
+        <div class="g-input-group">
+            <input type="text" id="username" placeholder=" " required autocomplete="off">
+            <label for="username">Enterprise Username</label>
+        </div>
+
+        <div class="g-input-group" style="margin-bottom: 8px;">
+            <input type="password" id="password" placeholder=" " required autocomplete="off">
+            <label for="password">Enter your password</label>
+        </div>
+
+        <div class="action-row">
+            <a href="#" style="color: var(--g-blue); text-decoration: none; font-weight: 500; font-size: 14px;">Forgot password?</a>
+            <button class="g-btn g-btn-primary" onclick="login()">Next</button>
+        </div>
+
+    </div>
 </div>
 
 <script>
-    // If already logged in, skip login page
-    if (localStorage.getItem('jwt_token')) {
-        window.location.href = '/index.html';
-    }
+    document.addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') login();
+    });
 
     async function login() {
-        const username = document.getElementById('username').value.trim();
-        const password = document.getElementById('password').value.trim();
-        const errorMsg = document.getElementById('errorMsg');
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+        const errContainer = document.getElementById('errorContainer');
+        const errMessage = document.getElementById('errorMessage');
 
-        if (!username || !password) {
-            errorMsg.textContent = 'Please enter username and password.';
-            errorMsg.style.display = 'block';
+        errContainer.style.display = 'none';
+
+        if (!user || !pass) {
+            errMessage.innerText = "Enter a username and password.";
+            errContainer.style.display = 'block';
             return;
         }
 
@@ -54,33 +112,25 @@
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({ username: user, password: pass })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                // Store token and user info in localStorage
                 localStorage.setItem('jwt_token', data.token);
                 localStorage.setItem('jwt_refresh_token', data.refreshToken);
                 localStorage.setItem('jwt_username', data.username);
                 localStorage.setItem('jwt_role', data.role);
-                // Redirect to dashboard
                 window.location.href = '/index.html';
             } else {
-                errorMsg.textContent = 'Invalid username or password.';
-                errorMsg.style.display = 'block';
+                errMessage.innerText = "Wrong password. Try again.";
+                errContainer.style.display = 'block';
             }
         } catch (error) {
-            errorMsg.textContent = 'Connection error. Is the server running?';
-            errorMsg.style.display = 'block';
+            errMessage.innerText = "Couldn't connect to server.";
+            errContainer.style.display = 'block';
         }
     }
-
-    // Allow pressing Enter to submit
-    document.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') login();
-    });
 </script>
-
 </body>
 </html>
