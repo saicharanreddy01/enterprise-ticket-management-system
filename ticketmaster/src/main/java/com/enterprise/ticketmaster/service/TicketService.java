@@ -34,6 +34,8 @@ public class TicketService {
         }
         routingEngine.routeTicket(ticket);
         slaEngine.assignSla(ticket);
+        // Once routed to a queue, the ticket is no longer "fresh/unassigned" — it's OPEN
+        ticket.setStatus(Status.OPEN);
         return ticketRepository.save(ticket);
     }
 
