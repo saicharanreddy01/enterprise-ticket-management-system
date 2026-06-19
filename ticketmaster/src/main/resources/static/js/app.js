@@ -33,6 +33,7 @@ function logout() {
 
 // --- 2. State & Init ---
 let ticketIdPendingResolve = null;
+let currentTickets = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     guardAuth();
@@ -55,6 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
 
     refreshDataPipeline();
+    loadCategories();
 });
 
 function switchView(viewId, el) {
@@ -69,6 +71,22 @@ function switchView(viewId, el) {
     }
 }
 
+async function loadCategories() {
+    const select = document.getElementById('category');
+    try {
+        const response = await fetchWithAuth('/api/categories', { headers: authHeaders() });
+        if (response.ok) {
+            const categories = await response.json();
+            categories.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c.id;
+                opt.textContent = c.name; // textContent, not innerHTML — same safety habit as the XSS fix
+                select.appendChild(opt);
+            });
+        }
+    } catch (e) { console.error("Failed to load categories:", e); }
+}
+
 // --- 3. Pipeline & Table Rendering ---
 async function refreshDataPipeline() {
     try {
@@ -76,6 +94,7 @@ async function refreshDataPipeline() {
         if (response.ok) {
             const rawData = await response.json();
             const tickets = Array.isArray(rawData) ? rawData : (rawData.content || []);
+            currentTickets = tickets;
 
             document.getElementById('metricTotal').innerText = tickets.length;
             document.getElementById('metricOpen').innerText = tickets.filter(t => ['NEW', 'OPEN', 'IN_PROGRESS'].includes(t.status)).length;
@@ -84,6 +103,15 @@ async function refreshDataPipeline() {
             renderTable(tickets);
         }
     } catch (e) { console.error("Pipeline Sync Error:", e); }
+}
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function renderTable(tickets) {
@@ -101,14 +129,14 @@ function renderTable(tickets) {
         if (t.slaBreached) slaText = '<span style="color:var(--g-red); font-weight:600;">BREACHED</span>';
         else if (t.slaDueDate) slaText = new Date(t.slaDueDate).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
 
-        let categoryName = t.category && t.category.name ? t.category.name : 'Uncategorized';
+        let categoryName = t.category && t.category.name ? escapeHtml(t.category.name) : 'Uncategorized';
         let priorityStyle = t.priority === 'HIGH' ? 'color: var(--g-red); font-weight: 600;' : 'color: var(--g-text-muted);';
 
         let actionBtn = `<span style="color: var(--g-text-muted); font-size:12px;">Closed</span>`;
         if (['NEW', 'OPEN'].includes(t.status)) {
-            actionBtn = `<button class="g-btn g-btn-text" style="padding: 0 12px; height: 28px; font-size: 12px;" onclick="startProgress(${t.id}, '${t.title}', '${t.priority}')">Ack</button>`;
+            actionBtn = `<button class="g-btn g-btn-text" style="padding: 0 12px; height: 28px; font-size: 12px;" onclick="startProgress(${t.id})">Ack</button>`;
         } else if (t.status === 'IN_PROGRESS') {
-            actionBtn = `<button class="g-btn g-btn-primary" style="padding: 0 12px; height: 28px; font-size: 12px;" onclick="prepResolve(${t.id}, '${t.title}', '${t.priority}')">Resolve</button>`;
+            actionBtn = `<button class="g-btn g-btn-primary" style="padding: 0 12px; height: 28px; font-size: 12px;" onclick="prepResolve(${t.id})">Resolve</button>`;
         }
 
         // Build Table Row
@@ -116,7 +144,7 @@ function renderTable(tickets) {
         tr.className = 'ticket-row'; // Tag for search filter
         tr.innerHTML = `
             <td style="color: var(--g-blue); font-weight: 500;">#${t.id}</td>
-            <td style="font-weight: 500; color: var(--g-text-main); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${t.title}</td>
+            <td style="font-weight: 500; color: var(--g-text-main); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.title)}</td>
             <td><span style="font-size: 12px; border: 1px solid var(--g-border); padding: 2px 6px; border-radius: 4px; color: var(--g-text-muted);">${categoryName}</span></td>
             <td style="${priorityStyle}">${t.priority}</td>
             <td><span class="${statusClass}">${t.status}</span></td>
@@ -174,7 +202,7 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             title: document.getElementById('title').value,
             description: document.getElementById('description').value,
             priority: document.getElementById('priority').value,
-            category: { name: document.getElementById('category').value },
+            category: { id: Number(document.getElementById('category').value) },
             status: 'NEW'
         })
     });
@@ -186,18 +214,22 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
     refreshDataPipeline();
 });
 
-async function startProgress(id, title, priority) {
+async function startProgress(id) {
+    const ticket = currentTickets.find(t => t.id === id);
+    if (!ticket) return;
     await fetchWithAuth(`/api/tickets/${id}`, {
         method: 'PUT', headers: authHeaders(),
-        body: JSON.stringify({ title, description: "Started", priority, status: 'IN_PROGRESS' })
+        body: JSON.stringify({ title: ticket.title, description: "Started", priority: ticket.priority, status: 'IN_PROGRESS' })
     });
     refreshDataPipeline();
 }
 
-function prepResolve(id, title, priority) {
+function prepResolve(id) {
+    const ticket = currentTickets.find(t => t.id === id);
+    if (!ticket) return;
     ticketIdPendingResolve = id;
-    document.getElementById('resTitle').innerText = title;
-    document.getElementById('resPriority').innerText = priority;
+    document.getElementById('resTitle').innerText = ticket.title;
+    document.getElementById('resPriority').innerText = ticket.priority;
     document.getElementById('resolveModal').showModal();
 }
 

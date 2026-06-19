@@ -45,10 +45,12 @@ public class SecurityConfig {
                         // 3. RESTRICTED ADMIN APIs (Access Management & Deletion)
                         .requestMatchers("/api/auth/register", "/api/auth/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/categories").hasRole("ADMIN")
 
                         // 4. AUTHENTICATED WORKFLOW APIs (Both Admins and Developers)
                         .requestMatchers("/api/tickets/**").authenticated()
                         .requestMatchers("/api/users/me").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/categories").authenticated()
 
                         // 5. CATCH-ALL (Lock down anything we forgot)
                         .anyRequest().authenticated()

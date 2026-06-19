@@ -5,6 +5,8 @@ import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.repository.TicketRepository;
 import org.springframework.stereotype.Service;
 import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
+import com.enterprise.ticketmaster.model.Category;
+import com.enterprise.ticketmaster.repository.CategoryRepository;
 import java.util.List;
 
 @Service
@@ -13,15 +15,23 @@ public class TicketService {
     private final TicketRepository ticketRepository;
     private final RoutingEngineService routingEngine;
     private final SlaManagementService slaEngine;
+    private final CategoryRepository categoryRepository;
 
-    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine, SlaManagementService slaEngine) {
+    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine, SlaManagementService slaEngine, CategoryRepository categoryRepository) {
         this.ticketRepository = ticketRepository;
         this.routingEngine = routingEngine;
         this.slaEngine = slaEngine;
+        this.categoryRepository = categoryRepository;
     }
 
-    // Save a ticket directly into the database table
     public Ticket createTicket(Ticket ticket) {
+        // Resolve category from DB using the id the frontend sent
+        // Without this, Hibernate sees a detached Category object and crashes
+        if (ticket.getCategory() != null && ticket.getCategory().getId() != null) {
+            Category category = categoryRepository.findById(ticket.getCategory().getId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Category not found with id: " + ticket.getCategory().getId()));
+            ticket.setCategory(category);
+        }
         routingEngine.routeTicket(ticket);
         slaEngine.assignSla(ticket);
         return ticketRepository.save(ticket);
