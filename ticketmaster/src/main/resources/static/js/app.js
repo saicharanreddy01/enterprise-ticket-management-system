@@ -44,7 +44,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 4. Role-Based Access Control (Admin Reveal)
     const role = localStorage.getItem('jwt_role');
-    if (role === 'ROLE_ADMIN') {
+    if (role === 'ADMIN') {
         const adminSec = document.getElementById('adminNavSection');
         if(adminSec) adminSec.style.display = 'block';
     }
