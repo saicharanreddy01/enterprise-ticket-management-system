@@ -37,7 +37,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
 
                         // 1. PUBLIC FRONTEND ASSETS (Browsers cannot send JWTs for HTML/CSS files)
-                        .requestMatchers("/css/**", "/js/**", "/landing.html", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
+                        .requestMatchers("/", "/css/**", "/js/**", "/landing.html", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
 
                         // 2. PUBLIC AUTH APIs (So users can actually log in)
                         .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()

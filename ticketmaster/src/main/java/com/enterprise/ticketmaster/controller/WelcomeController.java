@@ -1,13 +1,14 @@
 package com.enterprise.ticketmaster.controller;
 
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.view.RedirectView;
 
-@RestController
+@org.springframework.stereotype.Controller
 public class WelcomeController {
 
+    // Sends anyone hitting the bare domain straight to the marketing landing page
     @GetMapping("/")
-    public String displayWelcomeMessage() {
-        return "Welcome to the Enterprise Ticket Management System! Backend is live.";
+    public RedirectView redirectToLanding() {
+        return new RedirectView("/landing.html");
     }
 }
