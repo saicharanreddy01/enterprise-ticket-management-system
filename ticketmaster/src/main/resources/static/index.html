@@ -358,9 +358,16 @@
             <p style="margin: 0; color: var(--g-text-muted); font-size: 14px; line-height: 1.5;">You are marking this incident as fully mitigated. This action will halt the SLA timer.</p>
         </div>
     </div>
-    <div style="background-color: var(--g-background); padding: 16px; border-radius: 8px; margin-bottom: 32px; border: 1px solid var(--g-border);">
+    <div style="background-color: var(--g-background); padding: 16px; border-radius: 8px; margin-bottom: 24px; border: 1px solid var(--g-border);">
         <h4 id="resTitle" style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;"></h4>
         <span id="resPriority" class="ticket-chip"></span>
+    </div>
+    <div class="g-input-group" style="margin-bottom: 24px;">
+        <textarea id="resolveNotes" placeholder=" " rows="3"
+                  style="width: 100%; padding: 16px 14px; border: 1px solid var(--g-border); border-radius: 4px;
+                   font-family: var(--font-ui); font-size: 14px; background: transparent;
+                   outline: none; resize: vertical; box-sizing: border-box; color: var(--g-text-main);"></textarea>
+        <label for="resolveNotes">Resolution Notes <span style="color: var(--g-text-muted); font-weight: 400;">(optional)</span></label>
     </div>
     <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button type="button" class="g-btn g-btn-text" onclick="document.getElementById('resolveModal').close()">Cancel</button>

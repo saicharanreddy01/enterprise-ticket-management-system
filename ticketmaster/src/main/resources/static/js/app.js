@@ -219,7 +219,8 @@ async function startProgress(id) {
     if (!ticket) return;
     await fetchWithAuth(`/api/tickets/${id}`, {
         method: 'PUT', headers: authHeaders(),
-        body: JSON.stringify({ title: ticket.title, description: "Started", priority: ticket.priority, status: 'IN_PROGRESS' })
+        // Preserve the original description — never overwrite incident details
+        body: JSON.stringify({ title: ticket.title, description: ticket.description, priority: ticket.priority, status: 'IN_PROGRESS' })
     });
     refreshDataPipeline();
 }
@@ -235,16 +236,26 @@ function prepResolve(id) {
 
 async function submitResolve() {
     if (!ticketIdPendingResolve) return;
+    const ticket = currentTickets.find(t => t.id === ticketIdPendingResolve);
+    if (!ticket) return;
+
+    const notes = document.getElementById('resolveNotes').value.trim();
+    // Append resolution notes to original description if provided — never replace it
+    const finalDescription = notes
+        ? ticket.description + '\n\n--- Resolution Notes ---\n' + notes
+        : ticket.description;
+
     await fetchWithAuth(`/api/tickets/${ticketIdPendingResolve}`, {
         method: 'PUT', headers: authHeaders(),
         body: JSON.stringify({
-            title: document.getElementById('resTitle').innerText,
-            description: "Resolved via UI",
-            priority: document.getElementById('resPriority').innerText,
+            title: ticket.title,
+            description: finalDescription,
+            priority: ticket.priority,
             status: 'RESOLVED'
         })
     });
     document.getElementById('resolveModal').close();
+    document.getElementById('resolveNotes').value = '';
     ticketIdPendingResolve = null;
     refreshDataPipeline();
 }
