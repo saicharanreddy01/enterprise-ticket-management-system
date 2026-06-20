@@ -40,7 +40,7 @@ public class SecurityConfig {
                         .requestMatchers("/", "/css/**", "/js/**", "/landing.html", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
 
                         // 2. PUBLIC AUTH APIs (So users can actually log in)
-                        .requestMatchers("/api/auth/login", "/api/auth/refresh").permitAll()
+                        .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 
                         // 3. RESTRICTED ADMIN APIs (Access Management & Deletion)
                         .requestMatchers("/api/auth/register", "/api/auth/users/**").hasRole("ADMIN")

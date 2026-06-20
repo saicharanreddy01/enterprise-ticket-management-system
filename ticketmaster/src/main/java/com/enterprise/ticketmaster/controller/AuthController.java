@@ -80,6 +80,17 @@ public class AuthController {
         ));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody Map<String, String> request) {
+        String refreshToken = request.get("refreshToken");
+        if (refreshToken != null) {
+            // Deletes the row from refresh_tokens — even if someone steals this token
+            // from now on, /api/auth/refresh will reject it because it no longer exists in the DB
+            refreshTokenService.revokeToken(refreshToken);
+        }
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
+    }
+
     @PostMapping("/refresh")
     public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> request) {
         String requestRefreshToken = request.get("refreshToken");

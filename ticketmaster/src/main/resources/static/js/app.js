@@ -26,7 +26,21 @@ async function fetchWithAuth(url, options = {}) {
     return response;
 }
 
-function logout() {
+async function logout() {
+    const refreshToken = localStorage.getItem('jwt_refresh_token');
+    if (refreshToken) {
+        try {
+            // Revoke the token server-side so it can't be used even if it was stolen
+            await fetch('/api/auth/logout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refreshToken })
+            });
+        } catch (e) {
+            // Network failure shouldn't trap the user on the page — fall through and clear locally anyway
+            console.error('Logout revocation failed:', e);
+        }
+    }
     localStorage.clear();
     window.location.href = '/landing.html';
 }

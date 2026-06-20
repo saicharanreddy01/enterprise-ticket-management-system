@@ -17,4 +17,7 @@ public interface RefreshTokenRepository extends JpaRepository<RefreshToken, Long
 
     // Standard Spring Data derived delete
     void deleteByUser(User user);
+
+    // Used by logout to revoke a specific refresh token server-side
+    void deleteByToken(String token);
 }
