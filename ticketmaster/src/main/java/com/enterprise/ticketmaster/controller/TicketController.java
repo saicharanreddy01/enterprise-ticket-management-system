@@ -44,6 +44,11 @@ public class TicketController {
         return ticketService.getTicketsByStatus(status);
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<Ticket> getTicketById(@PathVariable Long id) {
+        return ResponseEntity.ok(ticketService.getTicketById(id));
+    }
+
     @PutMapping("/{id}")
     public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @Valid @RequestBody Ticket updatedTicket, Authentication authentication) {
         String username = authentication != null ? authentication.getName() : null;

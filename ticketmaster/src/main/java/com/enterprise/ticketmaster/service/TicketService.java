@@ -44,6 +44,11 @@ public class TicketService {
         return ticketRepository.findAll();
     }
 
+    public Ticket getTicketById(Long id) {
+        return ticketRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
+    }
+
     public List<Ticket> getTicketsByStatus(Status status) {
         return ticketRepository.findByStatus(status);
     }
