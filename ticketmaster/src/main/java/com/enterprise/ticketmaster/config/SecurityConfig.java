@@ -46,11 +46,15 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/register", "/api/auth/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/categories").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/routing-rules/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/routing-rules/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/routing-rules/**").hasRole("ADMIN")
 
                         // 4. AUTHENTICATED WORKFLOW APIs (Both Admins and Developers)
                         .requestMatchers("/api/tickets/**").authenticated()
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/categories").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/routing-rules").authenticated()
 
                         // 5. CATCH-ALL (Lock down anything we forgot)
                         .anyRequest().authenticated()
