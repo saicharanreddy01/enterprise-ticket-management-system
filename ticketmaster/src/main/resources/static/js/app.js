@@ -135,8 +135,13 @@ function renderTable(tickets) {
         let actionBtn = `<span style="color: var(--g-text-muted); font-size:12px;">Closed</span>`;
         if (['NEW', 'OPEN'].includes(t.status)) {
             actionBtn = `<button class="g-btn g-btn-text" style="padding: 0 12px; height: 28px; font-size: 12px;" onclick="startProgress(${t.id})">Ack</button>`;
-        } else if (t.status === 'IN_PROGRESS') {
+        } else if (t.status === 'IN_PROGRESS' || t.status === 'REOPENED') {
+            // REOPENED means the customer rejected the fix — it needs re-resolving, not "Closed"
             actionBtn = `<button class="g-btn g-btn-primary" style="padding: 0 12px; height: 28px; font-size: 12px;" onclick="prepResolve(${t.id})">Resolve</button>`;
+        } else if (t.status === 'PENDING') {
+            actionBtn = `<span style="color: var(--g-text-muted); font-size:12px;">Awaiting Response</span>`;
+        } else if (t.status === 'RESOLVED') {
+            actionBtn = `<span style="color: var(--g-blue); font-size:12px; font-weight:600;">Resolved</span>`;
         }
 
         // Build Table Row
