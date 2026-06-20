@@ -41,7 +41,7 @@ public class TicketService {
 
     // Fetch all records from the database table
     public List<Ticket> getAllTickets() {
-        return ticketRepository.findAll();
+        return ticketRepository.findAllWithDetails();
     }
 
     public Ticket getTicketById(Long id) {
@@ -50,7 +50,7 @@ public class TicketService {
     }
 
     public List<Ticket> getTicketsByStatus(Status status) {
-        return ticketRepository.findByStatus(status);
+        return ticketRepository.findByStatusWithDetails(status);
     }
 
     public Ticket updateTicket(Long id, Ticket updatedTicketDetails, String resolvedBy) {
