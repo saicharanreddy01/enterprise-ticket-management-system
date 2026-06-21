@@ -55,6 +55,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/users/me").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/categories").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/routing-rules").authenticated()
+                        .requestMatchers("/api/notifications/**").authenticated()
 
                         // 5. CATCH-ALL (Lock down anything we forgot)
                         .anyRequest().authenticated()

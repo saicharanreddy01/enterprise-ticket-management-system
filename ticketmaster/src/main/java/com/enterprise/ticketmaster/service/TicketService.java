@@ -3,9 +3,14 @@ package com.enterprise.ticketmaster.service;
 import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.repository.TicketRepository;
+import com.enterprise.ticketmaster.service.RoutingEngineService;
+import com.enterprise.ticketmaster.service.SlaManagementService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
+import com.enterprise.ticketmaster.event.TicketEvent;
 import com.enterprise.ticketmaster.model.Category;
+import com.enterprise.ticketmaster.model.NotificationType;
 import com.enterprise.ticketmaster.repository.CategoryRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
@@ -18,12 +23,14 @@ public class TicketService {
     private final RoutingEngineService routingEngine;
     private final SlaManagementService slaEngine;
     private final CategoryRepository categoryRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine, SlaManagementService slaEngine, CategoryRepository categoryRepository) {
+    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine, SlaManagementService slaEngine, CategoryRepository categoryRepository, ApplicationEventPublisher eventPublisher) {
         this.ticketRepository = ticketRepository;
         this.routingEngine = routingEngine;
         this.slaEngine = slaEngine;
         this.categoryRepository = categoryRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     public Ticket createTicket(Ticket ticket) {
@@ -38,7 +45,9 @@ public class TicketService {
         slaEngine.assignSla(ticket);
         // Once routed to a queue, the ticket is no longer "fresh/unassigned" — it's OPEN
         ticket.setStatus(Status.OPEN);
-        return ticketRepository.save(ticket);
+        Ticket saved = ticketRepository.save(ticket);
+        eventPublisher.publishEvent(new TicketEvent(saved, NotificationType.TICKET_CREATED));
+        return saved;
     }
 
     // Fetch all records from the database table
@@ -81,7 +90,14 @@ public class TicketService {
             if (Status.RESOLVED.equals(newStatus) && resolvedBy != null) {
                 existingTicket.setResolvedBy(resolvedBy);
             }
-            return ticketRepository.save(existingTicket);
+
+            Ticket saved = ticketRepository.save(existingTicket);
+
+            if (newStatus == Status.REOPENED && oldStatus != Status.REOPENED) {
+                eventPublisher.publishEvent(new TicketEvent(saved, NotificationType.TICKET_REOPENED));
+            }
+
+            return saved;
         }).orElseThrow(() -> new ResourceNotFoundException("Ticket not found with id: " + id));
     }
 

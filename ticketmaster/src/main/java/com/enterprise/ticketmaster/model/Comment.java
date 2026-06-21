@@ -43,7 +43,10 @@ public class Comment {
     public void setId(Long id) { this.id = id; }
     public String getContent() { return content; }
     public void setContent(String content) { this.content = content; }
-    public boolean isInternal() { return isInternal; }
+    @JsonIgnore
+    public boolean isInternal() {
+        return isInternal;
+    }
     public void setInternal(boolean internal) { isInternal = internal; }
     public String getAuthorUsername() { return authorUsername; }
     public void setAuthorUsername(String authorUsername) { this.authorUsername = authorUsername; }

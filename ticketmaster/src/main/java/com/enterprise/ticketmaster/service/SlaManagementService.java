@@ -1,9 +1,12 @@
 package com.enterprise.ticketmaster.service;
 
+import com.enterprise.ticketmaster.event.TicketEvent;
+import com.enterprise.ticketmaster.model.NotificationType;
 import com.enterprise.ticketmaster.model.Priority;
 import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.repository.TicketRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
@@ -15,9 +18,11 @@ import java.util.List;
 public class SlaManagementService {
 
     private final TicketRepository ticketRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
-    public SlaManagementService(TicketRepository ticketRepository) {
+    public SlaManagementService(TicketRepository ticketRepository, ApplicationEventPublisher eventPublisher) {
         this.ticketRepository = ticketRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     // Assigns the initial deadline based on severity
@@ -45,11 +50,15 @@ public class SlaManagementService {
         if (!breachedTickets.isEmpty()) {
             for (Ticket ticket : breachedTickets) {
                 ticket.setSlaBreached(true);
-                // Future Enhancement: We will trigger a real-time Email or WebSocket alert here!
                 System.out.println("SLA BREACH DETECTED: Ticket ID " + ticket.getId() + " assigned to " + ticket.getAssignedTo());
             }
             // Save all the breached statuses to the database in one batch
             ticketRepository.saveAll(breachedTickets);
+            // Now that they're persisted, fire an event per ticket so the notification feed picks it up —
+            // this replaces the old "Future Enhancement" comment that used to sit here
+            for (Ticket ticket : breachedTickets) {
+                eventPublisher.publishEvent(new TicketEvent(ticket, NotificationType.SLA_BREACHED));
+            }
         }
     }
 }
