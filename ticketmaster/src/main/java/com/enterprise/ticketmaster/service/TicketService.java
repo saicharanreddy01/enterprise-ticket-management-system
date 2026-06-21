@@ -7,6 +7,8 @@ import org.springframework.stereotype.Service;
 import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
 import com.enterprise.ticketmaster.model.Category;
 import com.enterprise.ticketmaster.repository.CategoryRepository;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -55,11 +57,28 @@ public class TicketService {
 
     public Ticket updateTicket(Long id, Ticket updatedTicketDetails, String resolvedBy) {
         return ticketRepository.findById(id).map(existingTicket -> {
+            Status oldStatus = existingTicket.getStatus();
+            Status newStatus = updatedTicketDetails.getStatus();
+
             existingTicket.setTitle(updatedTicketDetails.getTitle());
             existingTicket.setDescription(updatedTicketDetails.getDescription());
-            existingTicket.setStatus(updatedTicketDetails.getStatus());
+            existingTicket.setStatus(newStatus);
+
+            // SLA pause/resume: time spent waiting on the customer shouldn't count against the deadline
+            if (newStatus == Status.PENDING && oldStatus != Status.PENDING) {
+                // Entering a pause — record when it started
+                existingTicket.setPausedAt(LocalDateTime.now());
+            } else if (oldStatus == Status.PENDING && newStatus != Status.PENDING && existingTicket.getPausedAt() != null) {
+                // Resuming — push the deadline back by exactly how long it was paused
+                Duration pausedDuration = Duration.between(existingTicket.getPausedAt(), LocalDateTime.now());
+                if (existingTicket.getSlaDueDate() != null) {
+                    existingTicket.setSlaDueDate(existingTicket.getSlaDueDate().plus(pausedDuration));
+                }
+                existingTicket.setPausedAt(null);
+            }
+
             // Business logic lives here: if resolved, record who signed off
-            if (Status.RESOLVED.equals(updatedTicketDetails.getStatus()) && resolvedBy != null) {
+            if (Status.RESOLVED.equals(newStatus) && resolvedBy != null) {
                 existingTicket.setResolvedBy(resolvedBy);
             }
             return ticketRepository.save(existingTicket);

@@ -98,6 +98,17 @@ public class Ticket {
         this.slaDueDate = slaDueDate;
     }
 
+    @Column(name = "paused_at")
+    private LocalDateTime pausedAt; // Timestamp when the ticket entered PENDING — used to push the deadline back by however long it stayed paused
+
+    public LocalDateTime getPausedAt() {
+        return pausedAt;
+    }
+
+    public void setPausedAt(LocalDateTime pausedAt) {
+        this.pausedAt = pausedAt;
+    }
+
     @Column(name = "sla_breached")
     private Boolean slaBreached = false;
 
