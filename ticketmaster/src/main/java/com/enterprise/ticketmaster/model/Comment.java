@@ -1,6 +1,7 @@
 package com.enterprise.ticketmaster.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -20,6 +21,7 @@ public class Comment {
     private String content;
 
     @Column(nullable = false)
+    @JsonProperty("isInternal")
     private boolean isInternal = false; // TRUE = Private agent note, FALSE = Public reply
 
     @Column(nullable = false, updatable = false)

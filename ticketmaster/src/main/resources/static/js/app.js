@@ -48,6 +48,7 @@ async function logout() {
 // --- 2. State & Init ---
 let ticketIdPendingResolve = null;
 let currentTickets = [];
+let currentDetailTicketId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     guardAuth();
@@ -162,7 +163,7 @@ function renderTable(tickets) {
         const tr = document.createElement('tr');
         tr.className = 'ticket-row'; // Tag for search filter
         tr.innerHTML = `
-            <td style="color: var(--g-blue); font-weight: 500;">#${t.id}</td>
+            <td style="color: var(--g-blue); font-weight: 500; cursor: pointer;" onclick="openTicketDetail(${t.id})">#${t.id}</td>
             <td style="font-weight: 500; color: var(--g-text-main); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.title)}</td>
             <td><span style="font-size: 12px; border: 1px solid var(--g-border); padding: 2px 6px; border-radius: 4px; color: var(--g-text-muted);">${categoryName}</span></td>
             <td style="${priorityStyle}">${t.priority}</td>
@@ -172,6 +173,97 @@ function renderTable(tickets) {
         `;
         tbody.appendChild(tr);
     });
+}
+
+// --- 3b. Ticket Detail & Comments ---
+async function openTicketDetail(id) {
+    try {
+        const response = await fetchWithAuth(`/api/tickets/${id}`, { headers: authHeaders() });
+        if (!response.ok) return;
+        const ticket = await response.json();
+        currentDetailTicketId = ticket.id;
+
+        document.getElementById('detailTitle').innerText = ticket.title;
+        document.getElementById('detailSubId').innerText = `Ticket #${ticket.id} · Raised by ${ticket.raisedBy || 'Unknown'}`;
+
+        const statusChip = document.getElementById('detailStatusChip');
+        statusChip.className = 'ticket-chip';
+        if (['NEW', 'OPEN'].includes(ticket.status)) statusChip.className += ' chip-new';
+        else if (ticket.status === 'IN_PROGRESS') statusChip.className += ' chip-progress';
+        else if (ticket.status === 'RESOLVED') statusChip.className += ' chip-resolved';
+        statusChip.innerText = ticket.status;
+
+        const priorityChip = document.getElementById('detailPriorityChip');
+        priorityChip.className = 'ticket-chip' + (ticket.priority === 'HIGH' ? ' chip-new' : '');
+        priorityChip.innerText = ticket.priority;
+
+        document.getElementById('detailCategoryChip').innerText = ticket.category ? ticket.category.name : 'Uncategorized';
+        document.getElementById('detailDescription').innerText = ticket.description;
+
+        renderComments(ticket.comments || []);
+        document.getElementById('ticketDetailModal').showModal();
+    } catch (e) {
+        console.error('Failed to load ticket details:', e);
+    }
+}
+
+function renderComments(comments) {
+    const list = document.getElementById('detailCommentsList');
+    list.innerHTML = '';
+    if (comments.length === 0) {
+        list.innerHTML = '<p style="color: var(--g-text-muted); font-size: 13px; text-align: center; padding: 24px 0;">No comments yet.</p>';
+        return;
+    }
+    // Oldest first, like a real conversation thread
+    const sorted = [...comments].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+    sorted.forEach((c, i) => {
+        const initial = (c.authorUsername || '?').charAt(0).toUpperCase();
+        const time = new Date(c.createdAt).toLocaleString([], {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+
+        // Internal notes get an amber avatar + a left accent bar + a subtle tint —
+        // public replies stay flat and neutral, like a Gmail thread
+        const avatarBg = c.isInternal ? '#FEF7E0' : 'var(--g-blue-light)';
+        const avatarColor = c.isInternal ? '#B06000' : 'var(--g-blue)';
+        const rowStyle = c.isInternal
+            ? 'background-color: #FFFBEA; border-left: 3px solid var(--g-yellow); border-radius: 0 8px 8px 0;'
+            : '';
+        const isLast = i === sorted.length - 1;
+
+        const row = document.createElement('div');
+        row.style.cssText = `display: flex; gap: 12px; padding: 12px; ${rowStyle} ${!isLast && !c.isInternal ? 'border-bottom: 1px solid var(--g-border);' : ''}`;
+
+        const internalBadge = c.isInternal
+            ? `<span style="display:inline-flex; align-items:center; gap:2px; font-size:11px; font-weight:600; color:#B06000; background:#FEF1C8; padding:2px 8px; border-radius:100px; margin-left:8px;"><span class="material-symbols-rounded" style="font-size:13px;">lock</span>Internal</span>`
+            : '';
+
+        row.innerHTML = `
+            <div style="width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; background: ${avatarBg}; color: ${avatarColor}; display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 13px;">${escapeHtml(initial)}</div>
+            <div style="flex: 1; min-width: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; gap: 8px;">
+                    <span style="font-size: 13px;"><strong>${escapeHtml(c.authorUsername)}</strong>${internalBadge}</span>
+                    <span style="font-size: 11px; color: var(--g-text-muted); white-space: nowrap;">${time}</span>
+                </div>
+                <p style="margin: 4px 0 0 0; font-size: 13px; line-height: 1.5; white-space: pre-wrap; color: var(--g-text-main);">${escapeHtml(c.content)}</p>
+            </div>
+        `;
+        list.appendChild(row);
+    });
+}
+
+async function submitComment() {
+    if (!currentDetailTicketId) return;
+    const content = document.getElementById('newCommentContent').value.trim();
+    if (!content) return;
+    const isInternal = document.getElementById('newCommentInternal').checked;
+
+    await fetchWithAuth(`/api/tickets/${currentDetailTicketId}/comments`, {
+        method: 'POST', headers: authHeaders(),
+        body: JSON.stringify({ content, isInternal })
+    });
+
+    document.getElementById('newCommentContent').value = '';
+    document.getElementById('newCommentInternal').checked = false;
+    openTicketDetail(currentDetailTicketId); // refresh the thread with the new comment
 }
 
 // --- Real-time Search Filter ---

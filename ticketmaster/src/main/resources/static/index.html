@@ -374,6 +374,49 @@
     </div>
 </dialog>
 
+<dialog id="ticketDetailModal" class="md-dialog" style="max-width: 700px;">
+    <div class="dialog-header">
+        <div>
+            <h3 style="margin: 0; font-family: var(--font-display); font-size: 22px;" id="detailTitle"></h3>
+            <span style="color: var(--g-text-muted); font-size: 13px;" id="detailSubId"></span>
+        </div>
+        <button type="button" class="g-btn-text" style="padding: 0; width: 40px; height: 40px; border-radius: 50%; color: var(--g-text-muted); border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('ticketDetailModal').close()">
+            <span class="material-symbols-rounded">close</span>
+        </button>
+    </div>
+
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0;">
+        <span class="ticket-chip" id="detailStatusChip"></span>
+        <span class="ticket-chip" id="detailPriorityChip"></span>
+        <span style="font-size: 12px; border: 1px solid var(--g-border); padding: 4px 10px; border-radius: 100px; color: var(--g-text-muted);" id="detailCategoryChip"></span>
+    </div>
+
+    <div style="background-color: var(--g-background); padding: 16px; border-radius: 8px; border: 1px solid var(--g-border); margin-bottom: 24px;">
+        <div style="font-size: 12px; font-weight: 600; color: var(--g-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">Description</div>
+        <p id="detailDescription" style="margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;"></p>
+    </div>
+
+    <div style="font-size: 12px; font-weight: 600; color: var(--g-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Activity &amp; Comments</div>
+
+    <div id="detailCommentsList" style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;"></div>
+
+    <div class="g-input-group" style="margin-bottom: 12px;">
+        <textarea id="newCommentContent" placeholder=" " rows="3"
+                  style="width: 100%; padding: 16px 14px; border: 1px solid var(--g-border); border-radius: 4px;
+                   font-family: var(--font-ui); font-size: 14px; background: transparent;
+                   outline: none; resize: vertical; box-sizing: border-box; color: var(--g-text-main);"></textarea>
+        <label for="newCommentContent">Add a comment</label>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--g-text-muted); cursor: pointer;">
+            <input type="checkbox" id="newCommentInternal" style="width: 16px; height: 16px; cursor: pointer;">
+            Internal note (agents only)
+        </label>
+        <button type="button" class="g-btn g-btn-primary" onclick="submitComment()">Post Comment</button>
+    </div>
+</dialog>
+
 <script src="/js/app.js"></script>
 </body>
 </html>
