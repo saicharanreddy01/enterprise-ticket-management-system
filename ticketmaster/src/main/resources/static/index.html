@@ -66,13 +66,36 @@
         .dashboard-header h2 { font-family: var(--font-display); font-size: 32px; font-weight: 600; margin: 0 0 8px 0; letter-spacing: -0.5px; }
         .dashboard-header p { margin: 0; color: var(--g-text-muted); font-size: 16px; }
 
-        .metric-grid { display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
-        .metric-card {
-            background-color: var(--g-surface); border-radius: 16px; padding: 32px 24px; border: 1px solid var(--g-border);
-            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1); display: flex; flex-direction: column; gap: 16px; transition: box-shadow 0.2s;
+        /* Scorecard strip */
+        .scorecard {
+            background: var(--g-surface); border-radius: 16px; border: 1px solid var(--g-border);
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1);
+            display: flex; margin-bottom: 24px;
         }
-        .metric-label { font-size: 13px; font-weight: 600; letter-spacing: 0.8px; color: var(--g-text-muted); text-transform: uppercase; }
-        .metric-value { font-family: var(--font-display); font-size: 56px; font-weight: 400; line-height: 1; margin: 0; color: var(--g-text-main); letter-spacing: -1.5px; }
+        .scorecard-cell {
+            flex: 1; padding: 24px 28px; display: flex; flex-direction: column; gap: 8px;
+            border-right: 1px solid var(--g-border);
+        }
+        .scorecard-cell:last-child { border-right: none; }
+        .metric-label { font-size: 11px; font-weight: 600; letter-spacing: 0.8px; color: var(--g-text-muted); text-transform: uppercase; }
+        .metric-value { font-family: var(--font-display); font-size: 42px; font-weight: 400; line-height: 1; margin: 0; letter-spacing: -1px; }
+
+        /* Tabbed chart panel */
+        .chart-panel {
+            background: var(--g-surface); border-radius: 16px; border: 1px solid var(--g-border);
+            box-shadow: 0 1px 2px 0 rgba(60,64,67,0.1); overflow: hidden;
+        }
+        .chart-tabs {
+            display: flex; border-bottom: 1px solid var(--g-border); padding: 0 24px; gap: 4px;
+        }
+        .chart-tab {
+            padding: 14px 20px; font-size: 13px; font-weight: 500; color: var(--g-text-muted);
+            border: none; background: transparent; cursor: pointer; border-bottom: 3px solid transparent;
+            margin-bottom: -1px; transition: color 0.15s, border-color 0.15s; font-family: var(--font-ui);
+        }
+        .chart-tab.active { color: var(--g-blue); border-bottom-color: var(--g-blue); }
+        .chart-tab:hover:not(.active) { color: var(--g-text-main); background: var(--g-background); border-radius: 8px 8px 0 0; }
+        .chart-body { padding: 28px; height: 300px; position: relative; }
 
         /* 2 & 3. Operations Console Data Table & Search */
         .ops-toolbar {
@@ -244,40 +267,53 @@
                     <p>Real-time insights into system health and agent resolution velocity.</p>
                 </div>
 
-                <div class="metric-grid">
-                    <div class="metric-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span class="metric-label">Total Fleet Volume</span>
-                            <span class="material-symbols-rounded" style="color: var(--g-blue);">dns</span>
+                <!-- Scorecard Strip — all 4 KPIs in one horizontal card -->
+                <div class="scorecard">
+                    <div class="scorecard-cell">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="metric-label">Total Fleet</span>
+                            <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-blue);">dns</span>
                         </div>
-                        <h1 class="metric-value" style="color: var(--g-blue);" id="metricTotal">0</h1>
+                        <h1 class="metric-value" style="color:var(--g-blue);" id="metricTotal">0</h1>
                     </div>
 
-                    <div class="metric-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="scorecard-cell">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="metric-label">Active Backlog</span>
-                            <span class="material-symbols-rounded" style="color: var(--g-red);">warning</span>
+                            <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-red);">warning</span>
                         </div>
-                        <h1 class="metric-value" style="color: var(--g-red);" id="metricOpen">0</h1>
+                        <h1 class="metric-value" style="color:var(--g-red);" id="metricOpen">0</h1>
                     </div>
 
-                    <div class="metric-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <span class="metric-label">Resolved Mitigations</span>
-                            <span class="material-symbols-rounded" style="color: var(--g-green);">check_circle</span>
+                    <div class="scorecard-cell">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <span class="metric-label">Resolved</span>
+                            <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-green);">check_circle</span>
                         </div>
-                        <h1 class="metric-value" style="color: var(--g-green);" id="metricResolved">0</h1>
+                        <h1 class="metric-value" style="color:var(--g-green);" id="metricResolved">0</h1>
                     </div>
 
-                    <div class="metric-card">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div class="scorecard-cell">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span class="metric-label">SLA Compliance</span>
-                            <span class="material-symbols-rounded" style="color: var(--g-yellow);">timer</span>
+                            <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-yellow);">timer</span>
                         </div>
-                        <h1 class="metric-value" style="color: var(--g-yellow);" id="metricSla">—</h1>
-                        <div style="height: 4px; background: var(--g-border); border-radius: 2px; margin-top: -8px;">
-                            <div id="slaProgressBar" style="height: 100%; background: var(--g-yellow); border-radius: 2px; width: 0%; transition: width 0.6s ease;"></div>
+                        <h1 class="metric-value" id="metricSla" style="color:var(--g-yellow);">—</h1>
+                        <div style="height:3px; background:var(--g-border); border-radius:2px; margin-top:4px;">
+                            <div id="slaProgressBar" style="height:100%; border-radius:2px; width:0%; transition:width 0.6s ease; background:var(--g-yellow);"></div>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Tabbed Chart Panel — Status / Category / Priority -->
+                <div class="chart-panel">
+                    <div class="chart-tabs">
+                        <button class="chart-tab active" onclick="switchChartTab('status', this)">Status Breakdown</button>
+                        <button class="chart-tab" onclick="switchChartTab('category', this)">Volume by Category</button>
+                        <button class="chart-tab" onclick="switchChartTab('priority', this)">Priority Distribution</button>
+                    </div>
+                    <div class="chart-body">
+                        <canvas id="mainChart"></canvas>
                     </div>
                 </div>
 

@@ -49,8 +49,8 @@ async function logout() {
 let ticketIdPendingResolve = null;
 let currentTickets = [];
 let currentDetailTicketId = null;
-let statusChartInstance = null;
-let categoryChartInstance = null;
+let mainChartInstance = null;
+let activeChartTab = 'status';
 
 document.addEventListener('DOMContentLoaded', () => {
     guardAuth();
@@ -182,11 +182,10 @@ function renderTable(tickets) {
     });
 }
 
-// --- 3a. Dashboard Charts ---
+// --- 3a. Dashboard Charts (tabbed panel) ---
 function renderDashboardCharts(tickets) {
     renderSlaMetric(tickets);
-    renderStatusChart(tickets);
-    renderCategoryChart(tickets);
+    switchChartTab(activeChartTab, null, tickets);
 }
 
 function renderSlaMetric(tickets) {
@@ -198,61 +197,61 @@ function renderSlaMetric(tickets) {
     const compliant = withDeadline.filter(t => !t.slaBreached).length;
     const pct = Math.round((compliant / withDeadline.length) * 100);
     document.getElementById('metricSla').innerText = `${pct}%`;
-    document.getElementById('slaProgressBar').style.width = `${pct}%`;
-    // Color the bar: green above 80%, yellow 60-80%, red below
     const barColor = pct >= 80 ? '#1E8E3E' : pct >= 60 ? '#F9AB00' : '#D93025';
+    document.getElementById('slaProgressBar').style.width = `${pct}%`;
     document.getElementById('slaProgressBar').style.background = barColor;
     document.getElementById('metricSla').style.color = barColor;
 }
 
-function renderStatusChart(tickets) {
-    const ctx = document.getElementById('statusChart');
+function switchChartTab(tab, el, tickets) {
+    // Update active tab highlight
+    activeChartTab = tab;
+    if (el) {
+        document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+        el.classList.add('active');
+    }
+    // Use live data or fall back to currentTickets if called from a tab click
+    const data = tickets || currentTickets;
+    if (tab === 'status')    renderStatusChart(data);
+    if (tab === 'category')  renderCategoryChart(data);
+    if (tab === 'priority')  renderPriorityChart(data);
+}
+
+function buildChart(type, labels, values, colors, opts = {}) {
+    const ctx = document.getElementById('mainChart');
     if (!ctx) return;
+    if (mainChartInstance) mainChartInstance.destroy();
 
-    const statusOrder = ['NEW', 'OPEN', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED', 'REOPENED'];
-    const statusColors = {
-        NEW:         '#1A73E8',
-        OPEN:        '#4285F4',
-        IN_PROGRESS: '#F9AB00',
-        PENDING:     '#FBBC04',
-        RESOLVED:    '#1E8E3E',
-        CLOSED:      '#137333',
-        REOPENED:    '#D93025'
-    };
+    const baseFont = { family: 'Inter', size: 12 };
+    const borderRadius = type === 'bar' ? 6 : 0;
 
-    const counts = {};
-    statusOrder.forEach(s => counts[s] = 0);
-    tickets.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
-
-    // Only show statuses that actually have tickets — keeps the chart uncluttered
-    const activeStatuses = statusOrder.filter(s => counts[s] > 0);
-    if (activeStatuses.length === 0) return;
-
-    if (statusChartInstance) statusChartInstance.destroy();
-
-    statusChartInstance = new Chart(ctx, {
-        type: 'doughnut',
+    mainChartInstance = new Chart(ctx, {
+        type,
         data: {
-            labels: activeStatuses,
+            labels,
             datasets: [{
-                data: activeStatuses.map(s => counts[s]),
-                backgroundColor: activeStatuses.map(s => statusColors[s]),
-                borderWidth: 3,
-                borderColor: '#FFFFFF',
-                hoverOffset: 6
+                data: values,
+                backgroundColor: type === 'doughnut' ? colors : colors.map(c => c + 'CC'),
+                borderColor: type === 'doughnut' ? '#FFFFFF' : colors,
+                borderWidth: type === 'doughnut' ? 3 : 2,
+                borderRadius: type !== 'doughnut' ? borderRadius : undefined,
+                hoverOffset: type === 'doughnut' ? 6 : undefined,
+                borderSkipped: false
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            cutout: '68%',
+            cutout: type === 'doughnut' ? '68%' : undefined,
+            indexAxis: opts.horizontal ? 'y' : 'x',
             plugins: {
                 legend: {
+                    display: type === 'doughnut',
                     position: 'right',
                     labels: {
-                        font: { family: 'Inter', size: 12 },
+                        font: baseFont,
                         color: '#5F6368',
-                        padding: 14,
+                        padding: 16,
                         usePointStyle: true,
                         pointStyleWidth: 8
                     }
@@ -262,70 +261,54 @@ function renderStatusChart(tickets) {
                         label: ctx => ` ${ctx.label}: ${ctx.raw} ticket${ctx.raw !== 1 ? 's' : ''}`
                     }
                 }
-            }
+            },
+            scales: type !== 'doughnut' ? {
+                x: {
+                    ticks: { font: baseFont, color: '#5F6368', precision: 0 },
+                    grid: { color: '#F1F3F4' },
+                    border: { display: false }
+                },
+                y: {
+                    ticks: { font: baseFont, color: '#202124' },
+                    grid: { display: false },
+                    border: { display: false }
+                }
+            } : {}
         }
     });
 }
 
-function renderCategoryChart(tickets) {
-    const ctx = document.getElementById('categoryChart');
-    if (!ctx) return;
+function renderStatusChart(tickets) {
+    const order  = ['OPEN', 'IN_PROGRESS', 'NEW', 'PENDING', 'REOPENED', 'RESOLVED', 'CLOSED'];
+    const colors = { OPEN:'#4285F4', IN_PROGRESS:'#F9AB00', NEW:'#1A73E8',
+        PENDING:'#FBBC04', REOPENED:'#D93025', RESOLVED:'#1E8E3E', CLOSED:'#137333' };
+    const counts = {};
+    order.forEach(s => counts[s] = 0);
+    tickets.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
+    const active = order.filter(s => counts[s] > 0);
+    if (!active.length) return;
+    buildChart('doughnut', active, active.map(s => counts[s]), active.map(s => colors[s]));
+}
 
+function renderCategoryChart(tickets) {
     const counts = {};
     tickets.forEach(t => {
         const name = t.category ? t.category.name : 'Uncategorized';
         counts[name] = (counts[name] || 0) + 1;
     });
+    const sorted  = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const labels  = sorted.map(([k]) => k);
+    const values  = sorted.map(([, v]) => v);
+    const palette = ['#1A73E8','#34A853','#FBBC04','#EA4335','#9334E6','#00ACC1'];
+    buildChart('bar', labels, values, labels.map((_, i) => palette[i % palette.length]), { horizontal: true });
+}
 
-    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-    const labels = sorted.map(([k]) => k);
-    const values = sorted.map(([, v]) => v);
-
-    // Cycle through Google brand palette so each bar has its own identity
-    const palette = ['#1A73E8', '#34A853', '#FBBC04', '#EA4335', '#9334E6', '#00ACC1'];
-    const colors = labels.map((_, i) => palette[i % palette.length]);
-
-    if (categoryChartInstance) categoryChartInstance.destroy();
-
-    categoryChartInstance = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels,
-            datasets: [{
-                data: values,
-                backgroundColor: colors.map(c => c + 'CC'), // 80% opacity fill
-                borderColor: colors,
-                borderWidth: 2,
-                borderRadius: 6,
-                borderSkipped: false
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis: 'y',   // horizontal bars — category names are easier to read horizontally
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: ctx => ` ${ctx.raw} ticket${ctx.raw !== 1 ? 's' : ''}`
-                    }
-                }
-            },
-            scales: {
-                x: {
-                    ticks: { font: { family: 'Inter', size: 11 }, color: '#5F6368', precision: 0 },
-                    grid: { color: '#F1F3F4' },
-                    border: { display: false }
-                },
-                y: {
-                    ticks: { font: { family: 'Inter', size: 12 }, color: '#202124' },
-                    grid: { display: false },
-                    border: { display: false }
-                }
-            }
-        }
-    });
+function renderPriorityChart(tickets) {
+    const counts = { HIGH: 0, MEDIUM: 0, LOW: 0 };
+    tickets.forEach(t => { if (counts[t.priority] !== undefined) counts[t.priority]++; });
+    const labels = Object.keys(counts).filter(p => counts[p] > 0);
+    const colors = { HIGH: '#D93025', MEDIUM: '#F9AB00', LOW: '#1E8E3E' };
+    buildChart('bar', labels, labels.map(p => counts[p]), labels.map(p => colors[p]));
 }
 
 // --- 3b. Ticket Detail & Comments ---
