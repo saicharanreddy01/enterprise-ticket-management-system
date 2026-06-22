@@ -200,10 +200,39 @@
             <h1 class="view-title" id="currentViewTitle">Dashboard Overview</h1>
             <div style="display: flex; align-items: center; gap: 24px;">
                 <span style="color: var(--g-text-muted); font-size: 14px;" id="liveClock"></span>
+
+                <!-- Notification Bell -->
+                <div style="position: relative;">
+                    <button id="notifBellBtn" onclick="toggleNotificationPanel()" title="Notifications"
+                            style="width: 40px; height: 40px; border-radius: 50%; border: none; background: transparent;
+                               cursor: pointer; display: flex; align-items: center; justify-content: center;
+                               color: var(--g-text-muted); transition: background 0.15s;">
+                        <span class="material-symbols-rounded" style="font-size: 22px;">notifications</span>
+                    </button>
+                    <!-- Unread count badge — hidden when zero -->
+                    <span id="notifBadge" style="display: none; position: absolute; top: 4px; right: 4px;
+                          width: 16px; height: 16px; border-radius: 50%; background: var(--g-red);
+                          color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+                          pointer-events: none;"></span>
+                </div>
+
                 <button style="display: flex; align-items: center; gap: 10px; padding: 4px 16px 4px 4px; border-radius: 100px; border: 1px solid var(--g-border); background: transparent; cursor: pointer;" onclick="logout()">
                     <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--g-blue-light); color: var(--g-blue); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px;" id="userAvatar">A</div>
                     <span style="font-size: 14px; font-weight: 500; color: var(--g-text-muted); margin-right: 4px;">Sign Out</span>
                 </button>
+            </div>
+            <!-- Notification Panel Dropdown -->
+            <div id="notifPanel" style="display: none; position: absolute; top: 56px; right: 24px; width: 380px;
+                 background: var(--g-surface); border: 1px solid var(--g-border); border-radius: 12px;
+                 box-shadow: 0 8px 32px rgba(0,0,0,0.12); z-index: 999; overflow: hidden;">
+                <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 12px; border-bottom: 1px solid var(--g-border);">
+                    <span style="font-weight: 600; font-size: 15px; font-family: var(--font-display);">Notifications</span>
+                    <button onclick="markAllNotificationsRead()" class="g-btn g-btn-text"
+                            style="font-size: 12px; padding: 4px 10px; height: 28px; color: var(--g-blue);">
+                        Mark all as read
+                    </button>
+                </div>
+                <div id="notifList" style="max-height: 400px; overflow-y: auto;"></div>
             </div>
         </header>
 
