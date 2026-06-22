@@ -49,6 +49,8 @@ async function logout() {
 let ticketIdPendingResolve = null;
 let currentTickets = [];
 let currentDetailTicketId = null;
+let statusChartInstance = null;
+let categoryChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     guardAuth();
@@ -120,6 +122,7 @@ async function refreshDataPipeline() {
             document.getElementById('metricResolved').innerText = tickets.filter(t => ['RESOLVED', 'CLOSED'].includes(t.status)).length;
 
             renderTable(tickets);
+            renderDashboardCharts(tickets);
         }
     } catch (e) { console.error("Pipeline Sync Error:", e); }
 }
@@ -176,6 +179,152 @@ function renderTable(tickets) {
             <td style="text-align: right;">${actionBtn}</td>
         `;
         tbody.appendChild(tr);
+    });
+}
+
+// --- 3a. Dashboard Charts ---
+function renderDashboardCharts(tickets) {
+    renderSlaMetric(tickets);
+    renderStatusChart(tickets);
+    renderCategoryChart(tickets);
+}
+
+function renderSlaMetric(tickets) {
+    const withDeadline = tickets.filter(t => t.slaDueDate);
+    if (withDeadline.length === 0) {
+        document.getElementById('metricSla').innerText = 'N/A';
+        return;
+    }
+    const compliant = withDeadline.filter(t => !t.slaBreached).length;
+    const pct = Math.round((compliant / withDeadline.length) * 100);
+    document.getElementById('metricSla').innerText = `${pct}%`;
+    document.getElementById('slaProgressBar').style.width = `${pct}%`;
+    // Color the bar: green above 80%, yellow 60-80%, red below
+    const barColor = pct >= 80 ? '#1E8E3E' : pct >= 60 ? '#F9AB00' : '#D93025';
+    document.getElementById('slaProgressBar').style.background = barColor;
+    document.getElementById('metricSla').style.color = barColor;
+}
+
+function renderStatusChart(tickets) {
+    const ctx = document.getElementById('statusChart');
+    if (!ctx) return;
+
+    const statusOrder = ['NEW', 'OPEN', 'IN_PROGRESS', 'PENDING', 'RESOLVED', 'CLOSED', 'REOPENED'];
+    const statusColors = {
+        NEW:         '#1A73E8',
+        OPEN:        '#4285F4',
+        IN_PROGRESS: '#F9AB00',
+        PENDING:     '#FBBC04',
+        RESOLVED:    '#1E8E3E',
+        CLOSED:      '#137333',
+        REOPENED:    '#D93025'
+    };
+
+    const counts = {};
+    statusOrder.forEach(s => counts[s] = 0);
+    tickets.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
+
+    // Only show statuses that actually have tickets — keeps the chart uncluttered
+    const activeStatuses = statusOrder.filter(s => counts[s] > 0);
+    if (activeStatuses.length === 0) return;
+
+    if (statusChartInstance) statusChartInstance.destroy();
+
+    statusChartInstance = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: activeStatuses,
+            datasets: [{
+                data: activeStatuses.map(s => counts[s]),
+                backgroundColor: activeStatuses.map(s => statusColors[s]),
+                borderWidth: 3,
+                borderColor: '#FFFFFF',
+                hoverOffset: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '68%',
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        font: { family: 'Inter', size: 12 },
+                        color: '#5F6368',
+                        padding: 14,
+                        usePointStyle: true,
+                        pointStyleWidth: 8
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.label}: ${ctx.raw} ticket${ctx.raw !== 1 ? 's' : ''}`
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderCategoryChart(tickets) {
+    const ctx = document.getElementById('categoryChart');
+    if (!ctx) return;
+
+    const counts = {};
+    tickets.forEach(t => {
+        const name = t.category ? t.category.name : 'Uncategorized';
+        counts[name] = (counts[name] || 0) + 1;
+    });
+
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const labels = sorted.map(([k]) => k);
+    const values = sorted.map(([, v]) => v);
+
+    // Cycle through Google brand palette so each bar has its own identity
+    const palette = ['#1A73E8', '#34A853', '#FBBC04', '#EA4335', '#9334E6', '#00ACC1'];
+    const colors = labels.map((_, i) => palette[i % palette.length]);
+
+    if (categoryChartInstance) categoryChartInstance.destroy();
+
+    categoryChartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                data: values,
+                backgroundColor: colors.map(c => c + 'CC'), // 80% opacity fill
+                borderColor: colors,
+                borderWidth: 2,
+                borderRadius: 6,
+                borderSkipped: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',   // horizontal bars — category names are easier to read horizontally
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: ctx => ` ${ctx.raw} ticket${ctx.raw !== 1 ? 's' : ''}`
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    ticks: { font: { family: 'Inter', size: 11 }, color: '#5F6368', precision: 0 },
+                    grid: { color: '#F1F3F4' },
+                    border: { display: false }
+                },
+                y: {
+                    ticks: { font: { family: 'Inter', size: 12 }, color: '#202124' },
+                    grid: { display: false },
+                    border: { display: false }
+                }
+            }
+        }
     });
 }
 

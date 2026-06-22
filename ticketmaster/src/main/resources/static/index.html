@@ -268,6 +268,44 @@
                         </div>
                         <h1 class="metric-value" style="color: var(--g-green);" id="metricResolved">0</h1>
                     </div>
+
+                    <div class="metric-card">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span class="metric-label">SLA Compliance</span>
+                            <span class="material-symbols-rounded" style="color: var(--g-yellow);">timer</span>
+                        </div>
+                        <h1 class="metric-value" style="color: var(--g-yellow);" id="metricSla">—</h1>
+                        <div style="height: 4px; background: var(--g-border); border-radius: 2px; margin-top: -8px;">
+                            <div id="slaProgressBar" style="height: 100%; background: var(--g-yellow); border-radius: 2px; width: 0%; transition: width 0.6s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chart Row — sits below KPI strip, same visual weight as metric cards -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
+                    <div class="metric-card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <p class="metric-label" style="margin-bottom: 2px;">Status Breakdown</p>
+                                <p style="font-size: 12px; color: var(--g-text-muted); margin: 0;">Current ticket pipeline</p>
+                            </div>
+                        </div>
+                        <div style="position: relative; height: 220px; display: flex; align-items: center; justify-content: center;">
+                            <canvas id="statusChart"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="metric-card" style="padding: 24px;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <div>
+                                <p class="metric-label" style="margin-bottom: 2px;">Volume by Category</p>
+                                <p style="font-size: 12px; color: var(--g-text-muted); margin: 0;">Where workload is concentrated</p>
+                            </div>
+                        </div>
+                        <div style="position: relative; height: 220px;">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -446,6 +484,7 @@
     </div>
 </dialog>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="/js/app.js"></script>
 </body>
 </html>
