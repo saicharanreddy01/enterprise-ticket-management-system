@@ -73,6 +73,12 @@ public class TicketService {
             existingTicket.setDescription(updatedTicketDetails.getDescription());
             existingTicket.setStatus(newStatus);
 
+            if (newStatus == Status.RESOLVED) {
+                existingTicket.setResolvedAt(LocalDateTime.now());
+            } else if (newStatus == Status.REOPENED) {
+                existingTicket.setResolvedAt(null);
+            }
+
             // SLA pause/resume: time spent waiting on the customer shouldn't count against the deadline
             if (newStatus == Status.PENDING && oldStatus != Status.PENDING) {
                 // Entering a pause — record when it started

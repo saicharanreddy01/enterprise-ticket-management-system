@@ -129,6 +129,9 @@ public class Ticket {
     @Column(nullable = false)
     private LocalDateTime updatedAt; // Maintained automatically by JPA Auditing
 
+    @Column(name = "resolved_at")
+    private LocalDateTime resolvedAt;
+    
     // ==================== CONSTRUCTORS ====================
 
     public Ticket() {
@@ -215,4 +218,8 @@ public class Ticket {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public LocalDateTime getResolvedAt() { return resolvedAt; }
+
+    public void setResolvedAt(LocalDateTime resolvedAt) { this.resolvedAt = resolvedAt; }
 }

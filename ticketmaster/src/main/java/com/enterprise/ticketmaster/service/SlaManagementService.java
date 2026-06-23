@@ -5,17 +5,20 @@ import com.enterprise.ticketmaster.model.NotificationType;
 import com.enterprise.ticketmaster.model.Priority;
 import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
+import org.springframework.transaction.annotation.Transactional;
 import com.enterprise.ticketmaster.repository.TicketRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
 @Service
 public class SlaManagementService {
+    private static final Logger log = LoggerFactory.getLogger(SlaManagementService.class);
 
     private final TicketRepository ticketRepository;
     private final ApplicationEventPublisher eventPublisher;
@@ -38,7 +41,7 @@ public class SlaManagementService {
     }
 
     // The Background Worker: Runs every 60,000 milliseconds (1 minute)
-    @Scheduled(fixedRate = 60000)
+    @Scheduled(cron = "0 0 * * * *")
     public void monitorSlaBreaches() {
         // We do NOT penalize agents if the ticket is waiting on the customer (PENDING)
         List<Status> excludedStatuses = Arrays.asList(Status.RESOLVED, Status.CLOSED, Status.PENDING);
@@ -59,6 +62,26 @@ public class SlaManagementService {
             for (Ticket ticket : breachedTickets) {
                 eventPublisher.publishEvent(new TicketEvent(ticket, NotificationType.SLA_BREACHED));
             }
+        }
+    }
+
+    @Scheduled(fixedRate = 10_000)
+    @Transactional
+    public void autoCloseResolvedTickets() {
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(3);
+        List<Ticket> candidates = ticketRepository.findAutoCloseCandidates(Status.RESOLVED, cutoff);
+
+        if (candidates.isEmpty()) return;
+
+        log.info("Auto-close scheduler: {} ticket(s) eligible for closure", candidates.size());
+
+        for (Ticket ticket : candidates) {
+            ticket.setStatus(Status.CLOSED);
+            ticket.setResolvedAt(null);   // closed — field no longer meaningful
+            ticketRepository.save(ticket);
+            eventPublisher.publishEvent(
+                    new TicketEvent(ticket, NotificationType.TICKET_AUTO_CLOSED)
+            );
         }
     }
 }

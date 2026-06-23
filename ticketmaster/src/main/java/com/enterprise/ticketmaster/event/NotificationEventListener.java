@@ -24,6 +24,7 @@ public class NotificationEventListener {
             case TICKET_CREATED -> notification.setMessage("New ticket #" + event.getTicket().getId() + " raised: " + event.getTicket().getTitle());
             case SLA_BREACHED -> notification.setMessage("SLA breached on ticket #" + event.getTicket().getId() + ": " + event.getTicket().getTitle());
             case TICKET_REOPENED -> notification.setMessage("Ticket #" + event.getTicket().getId() + " reopened: " + event.getTicket().getTitle());
+            case TICKET_AUTO_CLOSED -> notification.setMessage("Ticket #" + event.getTicket().getId() + " was automatically closed after 3 days in Resolved status.");
         }
 
         notificationRepository.save(notification);
