@@ -1,7 +1,6 @@
 package com.enterprise.ticketmaster.service;
 
-import com.enterprise.ticketmaster.model.Status;
-import com.enterprise.ticketmaster.model.Ticket;
+import com.enterprise.ticketmaster.model.*;
 import com.enterprise.ticketmaster.repository.TicketRepository;
 import com.enterprise.ticketmaster.service.RoutingEngineService;
 import com.enterprise.ticketmaster.service.SlaManagementService;
@@ -9,12 +8,12 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
 import com.enterprise.ticketmaster.event.TicketEvent;
-import com.enterprise.ticketmaster.model.Category;
-import com.enterprise.ticketmaster.model.NotificationType;
 import com.enterprise.ticketmaster.repository.CategoryRepository;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+
+import com.enterprise.ticketmaster.repository.TicketHistoryRepository;
 
 @Service
 public class TicketService {
@@ -24,13 +23,18 @@ public class TicketService {
     private final SlaManagementService slaEngine;
     private final CategoryRepository categoryRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final TicketHistoryRepository ticketHistoryRepository;
 
-    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine, SlaManagementService slaEngine, CategoryRepository categoryRepository, ApplicationEventPublisher eventPublisher) {
+    public TicketService(TicketRepository ticketRepository, RoutingEngineService routingEngine,
+                         SlaManagementService slaEngine, CategoryRepository categoryRepository,
+                         ApplicationEventPublisher eventPublisher,
+                         TicketHistoryRepository ticketHistoryRepository) {
         this.ticketRepository = ticketRepository;
         this.routingEngine = routingEngine;
         this.slaEngine = slaEngine;
         this.categoryRepository = categoryRepository;
         this.eventPublisher = eventPublisher;
+        this.ticketHistoryRepository = ticketHistoryRepository;
     }
 
     public Ticket createTicket(Ticket ticket) {
@@ -67,6 +71,9 @@ public class TicketService {
     public Ticket updateTicket(Long id, Ticket updatedTicketDetails, String resolvedBy) {
         return ticketRepository.findById(id).map(existingTicket -> {
             Status oldStatus = existingTicket.getStatus();
+            Priority oldPriority = existingTicket.getPriority();
+            String oldAssignedTo = existingTicket.getAssignedTo();
+            Category oldCategory = existingTicket.getCategory();
             Status newStatus = updatedTicketDetails.getStatus();
 
             existingTicket.setTitle(updatedTicketDetails.getTitle());
@@ -96,6 +103,56 @@ public class TicketService {
             if (Status.RESOLVED.equals(newStatus) && resolvedBy != null) {
                 existingTicket.setResolvedBy(resolvedBy);
             }
+
+            // --- Audit history recording ---
+            LocalDateTime now = LocalDateTime.now();
+
+            if (updatedTicketDetails.getStatus() != null && updatedTicketDetails.getStatus() != oldStatus) {
+                TicketHistory h = new TicketHistory();
+                h.setTicketId(id);
+                h.setChangedBy(resolvedBy);
+                h.setChangedAt(now);
+                h.setFieldName("status");
+                h.setOldValue(oldStatus != null ? oldStatus.name() : null);
+                h.setNewValue(updatedTicketDetails.getStatus().name());
+                ticketHistoryRepository.save(h);
+            }
+
+            if (updatedTicketDetails.getPriority() != null && updatedTicketDetails.getPriority() != oldPriority) {
+                TicketHistory h = new TicketHistory();
+                h.setTicketId(id);
+                h.setChangedBy(resolvedBy);
+                h.setChangedAt(now);
+                h.setFieldName("priority");
+                h.setOldValue(oldPriority != null ? oldPriority.name() : null);
+                h.setNewValue(updatedTicketDetails.getPriority().name());
+                ticketHistoryRepository.save(h);
+            }
+
+            if (updatedTicketDetails.getCategory() != null && oldCategory != null
+                    && !updatedTicketDetails.getCategory().getId().equals(oldCategory.getId())) {
+                TicketHistory h = new TicketHistory();
+                h.setTicketId(id);
+                h.setChangedBy(resolvedBy);
+                h.setChangedAt(now);
+                h.setFieldName("category");
+                h.setOldValue(oldCategory.getName());
+                h.setNewValue(updatedTicketDetails.getCategory().getName());
+                ticketHistoryRepository.save(h);
+            }
+
+            if (updatedTicketDetails.getAssignedTo() != null
+                    && !updatedTicketDetails.getAssignedTo().equals(oldAssignedTo)) {
+                TicketHistory h = new TicketHistory();
+                h.setTicketId(id);
+                h.setChangedBy(resolvedBy);
+                h.setChangedAt(now);
+                h.setFieldName("assignedTo");
+                h.setOldValue(oldAssignedTo);
+                h.setNewValue(updatedTicketDetails.getAssignedTo());
+                ticketHistoryRepository.save(h);
+            }
+// --- End audit history ---
 
             Ticket saved = ticketRepository.save(existingTicket);
 

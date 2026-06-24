@@ -337,6 +337,7 @@ async function openTicketDetail(id) {
         document.getElementById('detailDescription').innerText = ticket.description;
 
         renderComments(ticket.comments || []);
+        switchDetailTab('comments');
         document.getElementById('ticketDetailModal').showModal();
     } catch (e) {
         console.error('Failed to load ticket details:', e);
@@ -642,4 +643,93 @@ async function suggestClassification() {
     } finally {
         btn.disabled = false;
     }
+}
+
+function switchDetailTab(tab) {
+    const commentsPanel = document.getElementById('detailPanelComments');
+    const historyPanel  = document.getElementById('detailPanelHistory');
+    const tabComments   = document.getElementById('tabComments');
+    const tabHistory    = document.getElementById('tabHistory');
+
+    const activeStyle   = 'var(--g-blue)';
+    const inactiveStyle = 'var(--g-text-muted)';
+
+    if (tab === 'comments') {
+        commentsPanel.style.display = 'block';
+        historyPanel.style.display  = 'none';
+        tabComments.style.borderBottomColor = activeStyle;
+        tabComments.style.color             = activeStyle;
+        tabHistory.style.borderBottomColor  = 'transparent';
+        tabHistory.style.color              = inactiveStyle;
+    } else {
+        commentsPanel.style.display = 'none';
+        historyPanel.style.display  = 'block';
+        tabComments.style.borderBottomColor = 'transparent';
+        tabComments.style.color             = inactiveStyle;
+        tabHistory.style.borderBottomColor  = activeStyle;
+        tabHistory.style.color              = activeStyle;
+        loadTicketHistory(currentDetailTicketId); // fetch on first click
+    }
+}
+
+async function loadTicketHistory(ticketId) {
+    const historyList = document.getElementById('historyList');
+    historyList.innerHTML = '<p style="color: var(--g-text-muted); font-size: 13px;">Loading...</p>';
+
+    try {
+        const token = localStorage.getItem('jwt_token');
+        const res = await fetch(`/api/tickets/${ticketId}/history`, {
+            headers: { 'Authorization': 'Bearer ' + token }
+        });
+        const entries = await res.json();
+
+        if (!entries.length) {
+            historyList.innerHTML = '<p style="color: var(--g-text-muted); font-size: 13px;">No changes recorded yet.</p>';
+            return;
+        }
+
+        historyList.innerHTML = entries.map(e => `
+            <div style="display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--g-border);">
+                <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--g-blue-light);
+                            color: var(--g-blue); display: flex; align-items: center; justify-content: center;
+                            font-size: 13px; font-weight: 600; flex-shrink: 0;">
+                    ${(e.changedBy || '?')[0].toUpperCase()}
+                </div>
+                <div style="flex: 1;">
+                    <div style="font-size: 13px; font-weight: 500; margin-bottom: 2px;">
+                        <span style="color: var(--g-blue);">${e.changedBy || 'System'}</span>
+                        changed <strong>${formatFieldName(e.fieldName)}</strong>
+                    </div>
+                    <div style="font-size: 12px; color: var(--g-text-muted); margin-bottom: 4px;">
+                        ${formatHistoryTimestamp(e.changedAt)}
+                    </div>
+                    <div style="font-size: 12px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                        <span style="background: #FCE8E6; color: var(--g-red); padding: 2px 8px; border-radius: 10px;">
+                            ${e.oldValue || '—'}
+                        </span>
+                        <span style="color: var(--g-text-muted);">→</span>
+                        <span style="background: #E6F4EA; color: var(--g-green); padding: 2px 8px; border-radius: 10px;">
+                            ${e.newValue || '—'}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (err) {
+        historyList.innerHTML = '<p style="color: var(--g-red); font-size: 13px;">Failed to load history.</p>';
+    }
+}
+
+function formatFieldName(field) {
+    const map = {
+        status: 'Status', priority: 'Priority', category: 'Category',
+        assignedTo: 'Assigned To', title: 'Title', description: 'Description'
+    };
+    return map[field] || field;
+}
+
+function formatHistoryTimestamp(ts) {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
 }

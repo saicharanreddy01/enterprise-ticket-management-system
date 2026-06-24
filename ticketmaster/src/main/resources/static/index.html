@@ -538,24 +538,46 @@
         <p id="detailDescription" style="margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;"></p>
     </div>
 
-    <div style="font-size: 12px; font-weight: 600; color: var(--g-text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 12px;">Activity &amp; Comments</div>
+    <!-- Tab switcher -->
+    <div style="display: flex; gap: 4px; border-bottom: 1px solid var(--g-border); margin-bottom: 16px;">
+        <button id="tabComments" onclick="switchDetailTab('comments')"
+                style="padding: 8px 16px; font-size: 13px; font-weight: 500; border: none; background: transparent;
+                   cursor: pointer; border-bottom: 3px solid var(--g-blue); color: var(--g-blue);
+                   margin-bottom: -1px; font-family: var(--font-ui);">
+            Activity &amp; Comments
+        </button>
+        <button id="tabHistory" onclick="switchDetailTab('history')"
+                style="padding: 8px 16px; font-size: 13px; font-weight: 500; border: none; background: transparent;
+                   cursor: pointer; border-bottom: 3px solid transparent; color: var(--g-text-muted);
+                   margin-bottom: -1px; font-family: var(--font-ui);">
+            Change History
+        </button>
+    </div>
 
-    <div id="detailCommentsList" style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;"></div>
+    <!-- Comments panel (default visible) -->
+    <div id="detailPanelComments">
+        <div id="detailCommentsList" style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;"></div>
 
-    <div class="g-input-group" style="margin-bottom: 12px;">
+        <div class="g-input-group" style="margin-bottom: 12px;">
         <textarea id="newCommentContent" placeholder=" " rows="3"
                   style="width: 100%; padding: 16px 14px; border: 1px solid var(--g-border); border-radius: 4px;
                    font-family: var(--font-ui); font-size: 14px; background: transparent;
                    outline: none; resize: vertical; box-sizing: border-box; color: var(--g-text-main);"></textarea>
-        <label for="newCommentContent">Add a comment</label>
-    </div>
+            <label for="newCommentContent">Add a comment</label>
+        </div>
 
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--g-text-muted); cursor: pointer;">
-            <input type="checkbox" id="newCommentInternal" style="width: 16px; height: 16px; cursor: pointer;">
-            Internal note (agents only)
-        </label>
-        <button type="button" class="g-btn g-btn-primary" onclick="submitComment()">Post Comment</button>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--g-text-muted); cursor: pointer;">
+                <input type="checkbox" id="newCommentInternal" style="width: 16px; height: 16px; cursor: pointer;">
+                Internal note (agents only)
+            </label>
+            <button type="button" class="g-btn g-btn-primary" onclick="submitComment()">Post Comment</button>
+        </div>
+    </div><!-- end detailPanelComments -->
+
+    <!-- History panel (hidden by default) -->
+    <div id="detailPanelHistory" style="display: none;">
+        <div id="historyList" style="max-height: 360px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;"></div>
     </div>
 </dialog>
 
