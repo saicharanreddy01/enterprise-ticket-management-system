@@ -586,3 +586,60 @@ async function submitResolve() {
     ticketIdPendingResolve = null;
     refreshDataPipeline();
 }
+
+async function suggestClassification() {
+    const title = document.getElementById('title')?.value?.trim();
+    const description = document.getElementById('description')?.value?.trim();
+
+    if (!title) {
+        alert('Please enter a title first so the classifier has something to work with.');
+        return;
+    }
+
+    const btn = document.getElementById('suggestBtn');
+    btn.textContent = '⏳ Analysing...';
+    btn.disabled = true;
+
+    try {
+        const token = localStorage.getItem('jwt_token');
+        const response = await fetch('/api/tickets/suggest', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify({ title, description })
+        });
+
+        if (!response.ok) throw new Error('Suggestion request failed');
+
+        const result = await response.json();
+
+        if (result.suggestedCategoryId) {
+            const categorySelect = document.getElementById('category');
+            if (categorySelect) {
+                categorySelect.value = result.suggestedCategoryId;
+                document.getElementById('categoryAiChip').style.display = 'inline-flex';
+            }
+        }
+
+        if (result.suggestedPriority) {
+            const prioritySelect = document.getElementById('priority');
+            if (prioritySelect) {
+                prioritySelect.value = result.suggestedPriority;
+                document.getElementById('priorityAiChip').style.display = 'inline-flex';
+            }
+        }
+
+        const pct = result.confidence;
+        btn.textContent = pct > 0
+            ? `✨ Suggested (${pct}% confidence) — override anytime`
+            : '✨ No clear match found — please select manually';
+
+    } catch (err) {
+        btn.textContent = '✨ Suggest Category & Priority';
+        console.error('Classification error:', err);
+    } finally {
+        btn.disabled = false;
+    }
+}

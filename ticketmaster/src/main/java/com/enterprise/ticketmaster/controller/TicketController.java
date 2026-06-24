@@ -8,6 +8,9 @@ import com.enterprise.ticketmaster.model.Priority;
 import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.service.TicketService;
 import org.springframework.web.bind.annotation.*;
+import com.enterprise.ticketmaster.model.TicketSuggestRequest;
+import com.enterprise.ticketmaster.model.TicketSuggestResponse;
+import com.enterprise.ticketmaster.service.ClassifierService;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -17,9 +20,11 @@ import java.util.List;
 public class TicketController {
 
     private final TicketService ticketService;
+    private final ClassifierService classifierService;
 
-    public TicketController(TicketService ticketService) {
+    public TicketController(TicketService ticketService, ClassifierService classifierService) {
         this.ticketService = ticketService;
+        this.classifierService = classifierService;
     }
 
     @GetMapping
@@ -60,5 +65,10 @@ public class TicketController {
         // 💡 Changed lowercase 's' to capital 'S'
         ticketService.deleteTicket(id);
         return "Ticket with ID " + id + " has been successfully deleted from the database.";
+    }
+
+    @PostMapping("/suggest")
+    public ResponseEntity<TicketSuggestResponse> suggest(@Valid @RequestBody TicketSuggestRequest request) {
+        return ResponseEntity.ok(classifierService.classify(request));
     }
 }

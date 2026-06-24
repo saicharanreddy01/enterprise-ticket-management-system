@@ -49,6 +49,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/routing-rules/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PUT, "/api/routing-rules/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/routing-rules/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/tickets/suggest").authenticated()
 
                         // 4. AUTHENTICATED WORKFLOW APIs (Both Admins and Developers)
                         .requestMatchers("/api/tickets/**").authenticated()
