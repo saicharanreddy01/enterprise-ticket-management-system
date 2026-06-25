@@ -1,5 +1,9 @@
 package com.enterprise.ticketmaster.config;
 
+import java.util.List;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import com.enterprise.ticketmaster.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -32,6 +36,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
@@ -102,5 +107,31 @@ public class SecurityConfig {
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration config = new CorsConfiguration();
+
+        // Only allow requests from your own frontend origin
+        // For local dev this is localhost:8080 since frontend is served by Spring Boot itself
+        // When you deploy, replace with your actual domain e.g. "https://ticketmaster.yourdomain.com"
+        config.setAllowedOrigins(List.of("http://localhost:8080"));
+
+        // Only the HTTP methods your API actually uses
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+
+        // Allow Content-Type header (needed for JSON requests)
+        config.setAllowedHeaders(List.of("Content-Type"));
+
+        // Required for cookies to be sent cross-origin (credentials: 'include')
+        config.setAllowCredentials(true);
+
+        // Cache preflight response for 1 hour — reduces OPTIONS request overhead
+        config.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", config);
+        return source;
     }
 }

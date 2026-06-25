@@ -1,25 +1,24 @@
 // --- 1. Auth & Security ---
-function authHeaders() { return { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` }; }
+function authHeaders() { return { 'Content-Type': 'application/json' }; }
 
 function guardAuth() {
-    if (!localStorage.getItem('jwt_token')) window.location.href = '/landing.html';
+    if (!localStorage.getItem('jwt_username')) window.location.href = '/landing.html';
 }
 
 async function fetchWithAuth(url, options = {}) {
+    // credentials: 'include' ensures cookies are sent on every request
+    options.credentials = 'include';
     let response = await fetch(url, options);
+
     if (response.status === 401) {
-        const refreshToken = localStorage.getItem('jwt_refresh_token');
-        if (refreshToken) {
-            const refreshResponse = await fetch('/api/auth/refresh', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ refreshToken })
-            });
-            if (refreshResponse.ok) {
-                const data = await refreshResponse.json();
-                localStorage.setItem('jwt_token', data.token);
-                if (data.refreshToken) localStorage.setItem('jwt_refresh_token', data.refreshToken);
-                if (options.headers) options.headers['Authorization'] = `Bearer ${data.token}`;
-                return await fetch(url, options);
-            }
+        // Try silent token refresh — server reads cookie, sets new cookie
+        const refreshResponse = await fetch('/api/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
+        if (refreshResponse.ok) {
+            return await fetch(url, options);
         }
         logout();
     }
@@ -27,19 +26,15 @@ async function fetchWithAuth(url, options = {}) {
 }
 
 async function logout() {
-    const refreshToken = localStorage.getItem('jwt_refresh_token');
-    if (refreshToken) {
-        try {
-            // Revoke the token server-side so it can't be used even if it was stolen
-            await fetch('/api/auth/logout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ refreshToken })
-            });
-        } catch (e) {
-            // Network failure shouldn't trap the user on the page — fall through and clear locally anyway
-            console.error('Logout revocation failed:', e);
-        }
+    try {
+        // Server reads refresh token from cookie, revokes it, and clears both cookies
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include'
+        });
+    } catch (e) {
+        console.error('Logout revocation failed:', e);
     }
     localStorage.clear();
     window.location.href = '/landing.html';
@@ -602,13 +597,10 @@ async function suggestClassification() {
     btn.disabled = true;
 
     try {
-        const token = localStorage.getItem('jwt_token');
         const response = await fetch('/api/tickets/suggest', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer ' + token
-            },
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ title, description })
         });
 

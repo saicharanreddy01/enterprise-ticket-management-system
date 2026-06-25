@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.config;
 
+import jakarta.servlet.http.Cookie;
 import com.enterprise.ticketmaster.repository.UserRepository;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -31,18 +32,22 @@ public class JwtFilter extends OncePerRequestFilter {
                                     FilterChain filterChain)
             throws ServletException, IOException {
 
-        // 1. Read the Authorization header
-        final String authHeader = request.getHeader("Authorization");
+        // 1. Read jwt_token from HttpOnly cookie
+        String token = null;
+        if (request.getCookies() != null) {
+            for (Cookie cookie : request.getCookies()) {
+                if ("jwt_token".equals(cookie.getName())) {
+                    token = cookie.getValue();
+                    break;
+                }
+            }
+        }
 
-        // 2. If no token present, skip — SecurityConfig will handle access denial
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // 2. No token cookie present — skip, SecurityConfig handles denial
+        if (token == null) {
             filterChain.doFilter(request, response);
             return;
         }
-
-        // 3. Extract the token (remove "Bearer " prefix)
-        final String token = authHeader.substring(7);
-
         try {
             // 4. Extract username from token
             final String username = jwtUtil.extractUsername(token);

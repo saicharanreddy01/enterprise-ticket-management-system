@@ -112,13 +112,14 @@
             const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // ← allows browser to receive and store HttpOnly cookies
                 body: JSON.stringify({ username: user, password: pass })
             });
 
             if (response.ok) {
                 const data = await response.json();
-                localStorage.setItem('jwt_token', data.token);
-                localStorage.setItem('jwt_refresh_token', data.refreshToken);
+                // Tokens are now in HttpOnly cookies — never touch them from JS
+                // Only store non-sensitive display data in localStorage
                 localStorage.setItem('jwt_username', data.username);
                 localStorage.setItem('jwt_role', data.role);
                 window.location.href = '/index.html';
