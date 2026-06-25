@@ -382,6 +382,17 @@
                     <tbody id="ticketTableBody">
                     </tbody>
                 </table>
+                </table>
+
+                <div id="consolePagination" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px; padding: 0 4px;">
+                    <span id="paginationInfo" style="font-size:13px; color:var(--g-text-muted);"></span>
+                    <div style="display:flex; gap:8px;">
+                        <button id="prevPageBtn" class="g-btn g-btn-text" onclick="changePage(-1)"
+                                style="padding: 0 16px; height:32px; font-size:13px;" disabled>← Previous</button>
+                        <button id="nextPageBtn" class="g-btn g-btn-text" onclick="changePage(1)"
+                                style="padding: 0 16px; height:32px; font-size:13px;" disabled>Next →</button>
+                    </div>
+                </div>
             </div>
 
             <div id="viewSettings" class="app-view">

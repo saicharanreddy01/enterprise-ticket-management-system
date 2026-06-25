@@ -1,5 +1,7 @@
 package com.enterprise.ticketmaster.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -18,6 +20,17 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             "LEFT JOIN FETCH t.comments " +
             "ORDER BY t.id DESC")
     List<Ticket> findAllWithDetails();
+
+    @Query(value = "SELECT t FROM Ticket t LEFT JOIN FETCH t.category LEFT JOIN FETCH t.subCategory ORDER BY t.id DESC",
+            countQuery = "SELECT COUNT(t) FROM Ticket t")
+    Page<Ticket> findAllPaginated(Pageable pageable);
+
+    @Query(value = "SELECT t FROM Ticket t LEFT JOIN FETCH t.category LEFT JOIN FETCH t.subCategory " +
+            "WHERE LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) ORDER BY t.id DESC",
+            countQuery = "SELECT COUNT(t) FROM Ticket t WHERE LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                    "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))")
+    Page<Ticket> searchTickets(@Param("q") String q, Pageable pageable);
 
     @Query("SELECT DISTINCT t FROM Ticket t " +
             "LEFT JOIN FETCH t.category " +

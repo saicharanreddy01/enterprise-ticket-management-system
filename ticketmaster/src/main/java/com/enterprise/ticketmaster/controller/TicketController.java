@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.controller;
 
+import org.springframework.data.domain.Page;
 import com.enterprise.ticketmaster.model.Status;
 import org.springframework.security.core.Authentication;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,14 @@ public class TicketController {
     @GetMapping
     public List<Ticket> getAllTickets() {
         return ticketService.getAllTickets();
+    }
+
+    @GetMapping("/search")
+    public ResponseEntity<Page<Ticket>> searchTickets(
+            @RequestParam(required = false, defaultValue = "") String q,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+        return ResponseEntity.ok(ticketService.searchTickets(q, page, size));
     }
 
     @PostMapping

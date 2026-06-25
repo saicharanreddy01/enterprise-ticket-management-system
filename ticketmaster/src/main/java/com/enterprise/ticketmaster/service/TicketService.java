@@ -1,5 +1,7 @@
 package com.enterprise.ticketmaster.service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import com.enterprise.ticketmaster.model.*;
 import com.enterprise.ticketmaster.repository.TicketRepository;
 import com.enterprise.ticketmaster.service.RoutingEngineService;
@@ -57,6 +59,17 @@ public class TicketService {
     // Fetch all records from the database table
     public List<Ticket> getAllTickets() {
         return ticketRepository.findAllWithDetails();
+    }
+
+    public Page<Ticket> getTicketsPaginated(int page, int size) {
+        return ticketRepository.findAllPaginated(PageRequest.of(page, size));
+    }
+
+    public Page<Ticket> searchTickets(String q, int page, int size) {
+        if (q == null || q.isBlank()) {
+            return getTicketsPaginated(page, size);
+        }
+        return ticketRepository.searchTickets(q, PageRequest.of(page, size));
     }
 
     public Ticket getTicketById(Long id) {

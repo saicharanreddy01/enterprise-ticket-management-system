@@ -44,6 +44,8 @@ async function logout() {
 let ticketIdPendingResolve = null;
 let currentTickets = [];
 let currentDetailTicketId = null;
+let consoleCurrentPage = 0;
+let consoleSearchQuery = '';
 let mainChartInstance = null;
 let activeChartTab = 'status';
 
@@ -85,6 +87,9 @@ function switchView(viewId, el) {
         const rawText = el.innerText.replace(/^[a-z_]+\s*/i, '').trim();
         document.getElementById('currentViewTitle').innerText = rawText || "Admin Panel";
     }
+    if (viewId === 'viewConsole') {
+        loadConsolePage(0, '');
+    }
 }
 
 async function loadCategories() {
@@ -116,7 +121,6 @@ async function refreshDataPipeline() {
             document.getElementById('metricOpen').innerText = tickets.filter(t => ['NEW', 'OPEN', 'IN_PROGRESS'].includes(t.status)).length;
             document.getElementById('metricResolved').innerText = tickets.filter(t => ['RESOLVED', 'CLOSED'].includes(t.status)).length;
 
-            renderTable(tickets);
             renderDashboardCharts(tickets);
         }
     } catch (e) { console.error("Pipeline Sync Error:", e); }
@@ -479,15 +483,55 @@ document.addEventListener('click', (e) => {
 });
 
 // --- Real-time Search Filter ---
+let searchDebounceTimer = null;
 function filterTickets() {
-    const input = document.getElementById("ticketSearch").value.toLowerCase();
-    const rows = document.querySelectorAll(".ticket-row");
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        const q = document.getElementById('ticketSearch').value.trim();
+        loadConsolePage(0, q);
+    }, 400);
+}
 
-    rows.forEach(row => {
-        // Search across the entire row's text content
-        const rowText = row.innerText.toLowerCase();
-        row.style.display = rowText.includes(input) ? "" : "none";
-    });
+async function loadConsolePage(page, q) {
+    consoleCurrentPage = page;
+    consoleSearchQuery = q || '';
+
+    const params = new URLSearchParams({ page, size: 20 });
+    if (consoleSearchQuery) params.set('q', consoleSearchQuery);
+
+    try {
+        const response = await fetchWithAuth(`/api/tickets/search?${params}`, {
+            headers: authHeaders()
+        });
+        if (!response.ok) return;
+        const data = await response.json();
+        renderTable(data.content || []);
+        renderPaginationControls(data);
+    } catch (e) {
+        console.error('Console load error:', e);
+    }
+}
+
+function renderPaginationControls(pageData) {
+    const info    = document.getElementById('paginationInfo');
+    const prevBtn = document.getElementById('prevPageBtn');
+    const nextBtn = document.getElementById('nextPageBtn');
+    if (!info || !prevBtn || !nextBtn) return;
+
+    const { number, totalPages, totalElements, numberOfElements } = pageData;
+    const start = number * 20 + 1;
+    const end   = number * 20 + numberOfElements;
+
+    info.innerText = totalElements > 0
+        ? `Showing ${start}–${end} of ${totalElements} tickets`
+        : 'No tickets found';
+
+    prevBtn.disabled = number === 0;
+    nextBtn.disabled = number >= totalPages - 1;
+}
+
+function changePage(delta) {
+    loadConsolePage(consoleCurrentPage + delta, consoleSearchQuery);
 }
 
 // --- 4. Admin Feature ---
@@ -535,6 +579,7 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
     // Switch to Ops view to see the new ticket
     switchView('viewConsole', document.querySelectorAll('.nav-item')[2]);
     refreshDataPipeline();
+    loadConsolePage(0, '');
 });
 
 async function startProgress(id) {
@@ -546,6 +591,7 @@ async function startProgress(id) {
         body: JSON.stringify({ title: ticket.title, description: ticket.description, priority: ticket.priority, status: 'IN_PROGRESS' })
     });
     refreshDataPipeline();
+    loadConsolePage(consoleCurrentPage, consoleSearchQuery);
 }
 
 function prepResolve(id) {
@@ -581,6 +627,7 @@ async function submitResolve() {
     document.getElementById('resolveNotes').value = '';
     ticketIdPendingResolve = null;
     refreshDataPipeline();
+    loadConsolePage(consoleCurrentPage, consoleSearchQuery);
 }
 
 async function suggestClassification() {
