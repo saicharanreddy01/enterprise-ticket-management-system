@@ -65,39 +65,74 @@ public class AuthController {
         String username = credentials.get("username");
         String password = credentials.get("password");
 
+        // --- Account lockout check ---
+        java.util.Optional<User> userOpt = userRepository.findByUsername(username);
+        if (userOpt.isPresent()) {
+            User user = userOpt.get();
+            if (user.getLockedUntil() != null
+                    && user.getLockedUntil().isAfter(java.time.LocalDateTime.now())) {
+                long secondsLeft = java.time.Duration.between(
+                        java.time.LocalDateTime.now(), user.getLockedUntil()).getSeconds();
+                return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                        .body("Account locked. Try again in " + secondsLeft + " second(s).");
+            }
+        }
+        // --- End lockout check ---
+
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password));
         } catch (BadCredentialsException e) {
+
+            // --- Increment failed attempts on wrong password ---
+            userOpt.ifPresent(user -> {
+                int attempts = user.getFailedAttempts() + 1;
+                user.setFailedAttempts(attempts);
+                if (attempts >= 10) {
+                    // Lock for 15 minutes after 10 failed attempts
+                    user.setLockedUntil(java.time.LocalDateTime.now().plusMinutes(15));
+                    user.setFailedAttempts(0);
+                    userRepository.save(user);
+                } else {
+                    userRepository.save(user);
+                }
+            });
+            // --- End increment ---
+
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password.");
         }
+
+        // --- Reset failed attempts on successful login ---
+        userOpt.ifPresent(user -> {
+            if (user.getFailedAttempts() > 0 || user.getLockedUntil() != null) {
+                user.setFailedAttempts(0);
+                user.setLockedUntil(null);
+                userRepository.save(user);
+            }
+        });
+        // --- End reset ---
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
         String accessToken = jwtUtil.generateToken(userDetails);
         RefreshToken refreshToken = refreshTokenService.createRefreshToken(username);
 
-        // Access token cookie — 15 minutes, HttpOnly, not readable by JavaScript
         ResponseCookie accessCookie = ResponseCookie.from("jwt_token", accessToken)
                 .httpOnly(true)
                 .path("/")
                 .maxAge(15 * 60)
                 .sameSite("Strict")
-                // .secure(true)  ← uncomment when deploying on HTTPS
                 .build();
 
-        // Refresh token cookie — 7 days, HttpOnly
         ResponseCookie refreshCookie = ResponseCookie.from("jwt_refresh_token", refreshToken.getToken())
                 .httpOnly(true)
                 .path("/")
                 .maxAge(7 * 24 * 60 * 60)
                 .sameSite("Strict")
-                // .secure(true)  ← uncomment when deploying on HTTPS
                 .build();
 
         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, refreshCookie.toString());
 
-        // Return ONLY non-sensitive data in the body — no tokens
         return ResponseEntity.ok(Map.of(
                 "username", username,
                 "role", userDetails.getAuthorities().iterator().next()
@@ -169,6 +204,27 @@ public class AuthController {
         if (!user.getRole().equals("DEVELOPER") && !user.getRole().equals("ADMIN")) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid role. Must be DEVELOPER or ADMIN.");
         }
+
+        // --- Password policy enforcement ---
+        String password = user.getPassword();
+        if (password == null || password.length() < 8) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Password must be at least 8 characters.");
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Password must contain at least one uppercase letter.");
+        }
+        if (!password.matches(".*[0-9].*")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Password must contain at least one number.");
+        }
+        if (!password.matches(".*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?].*")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body("Password must contain at least one special character.");
+        }
+        // --- End password policy ---
+
         user.setPassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
         return ResponseEntity.status(HttpStatus.CREATED).body("User registered successfully.");

@@ -19,6 +19,12 @@ public class User {
     @Column(nullable = false)
     private String role;
 
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts = 0;
+
+    @Column(name = "locked_until")
+    private java.time.LocalDateTime lockedUntil;
+
     // Default constructor (required by JPA)
     public User() {}
 
@@ -38,4 +44,10 @@ public class User {
 
     public String getRole() { return role; }
     public void setRole(String role) { this.role = role; }
+
+    public int getFailedAttempts() { return failedAttempts; }
+    public void setFailedAttempts(int failedAttempts) { this.failedAttempts = failedAttempts; }
+
+    public java.time.LocalDateTime getLockedUntil() { return lockedUntil; }
+    public void setLockedUntil(java.time.LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
 }
