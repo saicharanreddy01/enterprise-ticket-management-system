@@ -1,6 +1,9 @@
 package com.enterprise.ticketmaster.controller;
 
 import java.util.Map;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.data.domain.Page;
 import com.enterprise.ticketmaster.model.Status;
 import org.springframework.security.core.Authentication;
@@ -89,5 +92,41 @@ public class TicketController {
     @PostMapping("/suggest")
     public ResponseEntity<TicketSuggestResponse> suggest(@Valid @RequestBody TicketSuggestRequest request) {
         return ResponseEntity.ok(classifierService.classify(request));
+    }
+
+    @GetMapping("/export")
+    public void exportCsv(HttpServletResponse response) throws IOException {
+        response.setContentType("text/csv");
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"tickets.csv\"");
+
+        List<Ticket> tickets = ticketService.getAllTickets();
+
+        try (var writer = response.getWriter()) {
+            writer.println("ID,Title,Status,Priority,Category,Raised By,Assigned To,Assigned Agent,SLA Breached,Created At,Resolved At");
+            for (Ticket t : tickets) {
+                writer.println(String.join(",",
+                        str(t.getId()),
+                        csvEscape(t.getTitle()),
+                        str(t.getStatus()),
+                        str(t.getPriority()),
+                        t.getCategory() != null ? csvEscape(t.getCategory().getName()) : "",
+                        csvEscape(t.getRaisedBy()),
+                        csvEscape(t.getAssignedTo()),
+                        csvEscape(t.getAssignedAgent()),
+                        String.valueOf(t.getSlaBreached()),
+                        str(t.getCreatedAt()),
+                        str(t.getResolvedAt())
+                ));
+            }
+        }
+    }
+
+    private String str(Object o) { return o != null ? o.toString() : ""; }
+    private String csvEscape(String s) {
+        if (s == null) return "";
+        if (s.contains(",") || s.contains("\"") || s.contains("\n")) {
+            return "\"" + s.replace("\"", "\"\"") + "\"";
+        }
+        return s;
     }
 }

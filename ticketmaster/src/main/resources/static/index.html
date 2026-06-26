@@ -365,9 +365,18 @@
                 <div class="ops-toolbar">
                     <h2 style="font-family: var(--font-display); font-size: 24px; font-weight: 500; margin: 0;">Incident Queue</h2>
 
-                    <div class="search-bar">
-                        <span class="material-symbols-rounded" style="color: var(--g-text-muted); font-size: 20px;">search</span>
-                        <input type="text" id="ticketSearch" placeholder="Search by Ticket ID, Title, or Assignee..." onkeyup="filterTickets()">
+                    <div style="display:flex; align-items:center; gap:12px;">
+                        <a href="/api/tickets/export" download="tickets.csv"
+                           class="g-btn g-btn-text"
+                           style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--g-blue); text-decoration:none; padding:0 16px; height:36px; border:1px solid var(--g-border); border-radius:100px;">
+                            <span class="material-symbols-rounded" style="font-size:16px;">download</span>
+                            Export CSV
+                        </a>
+
+                        <div class="search-bar">
+                            <span class="material-symbols-rounded" style="color: var(--g-text-muted); font-size: 20px;">search</span>
+                            <input type="text" id="ticketSearch" placeholder="Search by Ticket ID, Title, or Assignee..." onkeyup="filterTickets()">
+                        </div>
                     </div>
                 </div>
 
