@@ -549,6 +549,22 @@
         <p id="detailDescription" style="margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;"></p>
     </div>
 
+    <!-- Attachments section -->
+    <div style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+            <span style="font-size: 12px; font-weight: 600; color: var(--g-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Attachments</span>
+            <label style="cursor:pointer; font-size:13px; color:var(--g-blue); font-weight:500; display:flex; align-items:center; gap:4px;">
+                <span class="material-symbols-rounded" style="font-size:16px;">upload</span>
+                Upload File
+                <input type="file" id="attachmentFileInput" style="display:none;"
+                       onchange="uploadAttachment(this)">
+            </label>
+        </div>
+        <div id="attachmentList" style="display:flex; flex-direction:column; gap:6px;">
+            <span style="font-size:13px; color:var(--g-text-muted);">No attachments yet.</span>
+        </div>
+    </div>
+
     <!-- Tab switcher -->
     <div style="display: flex; gap: 4px; border-bottom: 1px solid var(--g-border); margin-bottom: 16px;">
         <button id="tabComments" onclick="switchDetailTab('comments')"

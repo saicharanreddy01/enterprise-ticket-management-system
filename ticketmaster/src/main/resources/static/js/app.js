@@ -336,6 +336,7 @@ async function openTicketDetail(id) {
         document.getElementById('detailDescription').innerText = ticket.description;
 
         renderComments(ticket.comments || []);
+        loadAttachments(ticket.id);
         switchDetailTab('comments');
         document.getElementById('ticketDetailModal').showModal();
     } catch (e) {
@@ -400,6 +401,84 @@ async function submitComment() {
     document.getElementById('newCommentContent').value = '';
     document.getElementById('newCommentInternal').checked = false;
     openTicketDetail(currentDetailTicketId); // refresh the thread with the new comment
+}
+
+async function loadAttachments(ticketId) {
+    const list = document.getElementById('attachmentList');
+    if (!list) return;
+
+    try {
+        const res = await fetchWithAuth(`/api/tickets/${ticketId}/attachments`, {
+            headers: authHeaders()
+        });
+        const attachments = await res.json();
+
+        if (!attachments.length) {
+            list.innerHTML = '<span style="font-size:13px; color:var(--g-text-muted);">No attachments yet.</span>';
+            return;
+        }
+
+        list.innerHTML = attachments.map(a => `
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding: 8px 12px; background:var(--g-background);
+                        border:1px solid var(--g-border); border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                    <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-blue); flex-shrink:0;">attach_file</span>
+                    <div style="min-width:0;">
+                        <div style="font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${escapeHtml(a.originalFilename)}
+                        </div>
+                        <div style="font-size:11px; color:var(--g-text-muted);">
+                            ${formatFileSize(a.fileSize)} · ${a.uploadedBy} · ${formatHistoryTimestamp(a.uploadedAt)}
+                        </div>
+                    </div>
+                </div>
+                <a href="/api/tickets/${a.ticketId}/attachments/${a.id}/download"
+                   style="color:var(--g-blue); font-size:12px; font-weight:500; text-decoration:none;
+                          white-space:nowrap; margin-left:12px; flex-shrink:0;">
+                    Download
+                </a>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load attachments:', e);
+    }
+}
+
+async function uploadAttachment(input) {
+    if (!input.files.length || !currentDetailTicketId) return;
+    const file = input.files[0];
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+        const res = await fetchWithAuth(`/api/tickets/${currentDetailTicketId}/attachments`, {
+            method: 'POST',
+            credentials: 'include',
+            body: formData
+            // No Content-Type header — browser sets it automatically with boundary for multipart
+        });
+
+        if (res.ok) {
+            loadAttachments(currentDetailTicketId);
+        } else {
+            const err = await res.json();
+            alert(err.error || 'Upload failed.');
+        }
+    } catch (e) {
+        console.error('Upload error:', e);
+    }
+
+    // Reset input so the same file can be uploaded again if needed
+    input.value = '';
+}
+
+function formatFileSize(bytes) {
+    if (!bytes) return '0 B';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
 }
 
 // --- 5. Notification Bell ---
