@@ -68,6 +68,48 @@ public class EmailService {
     }
 
     @Async
+    public void sendSlaWarning(String toEmail, Long ticketId, String title) {
+        String subject = "⚠️ SLA Warning — Ticket #" + ticketId + " approaching deadline";
+        String body = """
+            <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #F9AB00; padding: 24px 32px;">
+                    <h1 style="color: white; margin: 0; font-size: 20px;">Ticketmaster Enterprise</h1>
+                </div>
+                <div style="padding: 32px; border: 1px solid #E0E0E0; border-top: none;">
+                    <h2 style="color: #F9AB00; margin: 0 0 16px 0;">SLA Warning</h2>
+                    <p style="color: #5F6368;">Ticket <strong>#%d</strong> has used 75%% of its SLA time. Only 25%% remains.</p>
+                    <div style="background: #FEF7E0; padding: 16px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #F9AB00;">
+                        <p style="margin: 0; font-weight: 600; color: #B06000;">%s</p>
+                    </div>
+                    <p style="color: #5F6368;">Act now to avoid an SLA breach.</p>
+                </div>
+            </div>
+            """.formatted(ticketId, title);
+        send(toEmail, subject, body);
+    }
+
+    @Async
+    public void sendSlaCritical(String toEmail, Long ticketId, String title) {
+        String subject = "🔴 SLA Critical — Ticket #" + ticketId + " — 10% time remaining";
+        String body = """
+            <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: #D93025; padding: 24px 32px;">
+                    <h1 style="color: white; margin: 0; font-size: 20px;">Ticketmaster Enterprise</h1>
+                </div>
+                <div style="padding: 32px; border: 1px solid #E0E0E0; border-top: none;">
+                    <h2 style="color: #D93025; margin: 0 0 16px 0;">SLA Critical Alert</h2>
+                    <p style="color: #5F6368;">Ticket <strong>#%d</strong> has only 10%% of SLA time remaining. Immediate action required.</p>
+                    <div style="background: #FCE8E6; padding: 16px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #D93025;">
+                        <p style="margin: 0; font-weight: 600; color: #D93025;">%s</p>
+                    </div>
+                    <p style="color: #5F6368;">Resolve or escalate this ticket immediately to prevent SLA breach.</p>
+                </div>
+            </div>
+            """.formatted(ticketId, title);
+        send(toEmail, subject, body);
+    }
+
+    @Async
     public void sendTicketResolved(String toEmail, Long ticketId, String title, String resolvedBy) {
         String subject = "✅ Ticket #" + ticketId + " Resolved";
         String body = """

@@ -574,9 +574,12 @@ function renderNotificationList(notifications) {
 
         // Icon per notification type — uses the same Material Symbols font already in the page
         const iconMap = {
-            TICKET_CREATED: { icon: 'confirmation_number', color: 'var(--g-blue)' },
-            SLA_BREACHED:   { icon: 'warning',             color: 'var(--g-red)' },
-            TICKET_REOPENED:{ icon: 'refresh',             color: 'var(--g-yellow)' }
+            TICKET_CREATED:   { icon: 'confirmation_number', color: 'var(--g-blue)' },
+            SLA_WARNING:      { icon: 'schedule',             color: 'var(--g-yellow)' },
+            SLA_CRITICAL:     { icon: 'alarm',                color: '#E37400' },
+            SLA_BREACHED:     { icon: 'warning',              color: 'var(--g-red)' },
+            TICKET_REOPENED:  { icon: 'refresh',              color: 'var(--g-yellow)' },
+            TICKET_AUTO_CLOSED: { icon: 'lock',               color: 'var(--g-text-muted)' }
         };
         const { icon, color } = iconMap[n.type] || { icon: 'info', color: 'var(--g-text-muted)' };
         const time = new Date(n.createdAt).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });

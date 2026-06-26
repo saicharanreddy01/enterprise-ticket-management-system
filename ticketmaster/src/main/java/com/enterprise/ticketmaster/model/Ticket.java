@@ -115,6 +115,17 @@ public class Ticket {
     @Column(name = "sla_breached")
     private Boolean slaBreached = false;
 
+    @Column(name = "sla_warning_sent", nullable = false)
+    private boolean slaWarningSent = false;
+
+    @Column(name = "sla_critical_sent", nullable = false)
+    private boolean slaCriticalSent = false;
+
+    public boolean isSlaWarningSent() { return slaWarningSent; }
+    public void setSlaWarningSent(boolean slaWarningSent) { this.slaWarningSent = slaWarningSent; }
+
+    public boolean isSlaCriticalSent() { return slaCriticalSent; }
+    public void setSlaCriticalSent(boolean slaCriticalSent) { this.slaCriticalSent = slaCriticalSent; }
 
     @CreatedDate
     @Column(nullable = false, updatable = false)

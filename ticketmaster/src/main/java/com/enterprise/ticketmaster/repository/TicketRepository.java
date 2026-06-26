@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.repository;
 
+import java.util.Collection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import com.enterprise.ticketmaster.model.Status;
@@ -51,4 +52,9 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             java.util.Collection<Status> statuses,
             java.time.LocalDateTime now
     );
+
+    @Query("SELECT t FROM Ticket t WHERE t.slaBreached = false " +
+            "AND t.slaDueDate IS NOT NULL " +
+            "AND t.status NOT IN :excludedStatuses")
+    List<Ticket> findActiveTicketsWithSla(@Param("excludedStatuses") List<Status> excludedStatuses);
 }

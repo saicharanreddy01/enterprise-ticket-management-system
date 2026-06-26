@@ -41,6 +41,16 @@ public class NotificationEventListener {
                 notification.setMessage("SLA breached on ticket #" + ticketId + ": " + title);
                 emailService.sendSlaBreached(notifyEmail, ticketId, title);
             }
+            case SLA_WARNING -> {
+                notification.setMessage("⚠️ SLA warning on ticket #" + ticketId
+                        + ": 25% of time remaining — " + title);
+                emailService.sendSlaWarning(notifyEmail, ticketId, title);
+            }
+            case SLA_CRITICAL -> {
+                notification.setMessage("🔴 SLA critical on ticket #" + ticketId
+                        + ": 10% of time remaining — " + title);
+                emailService.sendSlaCritical(notifyEmail, ticketId, title);
+            }
             case TICKET_REOPENED ->
                     notification.setMessage("Ticket #" + ticketId + " reopened: " + title);
             case TICKET_AUTO_CLOSED ->

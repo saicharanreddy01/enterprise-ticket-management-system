@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 
@@ -61,6 +62,52 @@ public class SlaManagementService {
             // this replaces the old "Future Enhancement" comment that used to sit here
             for (Ticket ticket : breachedTickets) {
                 eventPublisher.publishEvent(new TicketEvent(ticket, NotificationType.SLA_BREACHED));
+            }
+        }
+    }
+
+    @Scheduled(cron = "0 0 * * * *")
+    @Transactional
+    public void monitorSlaThresholds() {
+        List<Status> excludedStatuses = Arrays.asList(
+                Status.RESOLVED, Status.CLOSED, Status.PENDING);
+
+        List<Ticket> activeTickets = ticketRepository
+                .findActiveTicketsWithSla(excludedStatuses);
+
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Ticket ticket : activeTickets) {
+            LocalDateTime due = ticket.getSlaDueDate();
+            if (due == null) continue;
+
+            // Calculate total SLA duration from priority
+            long totalMinutes = switch (ticket.getPriority()) {
+                case HIGH   -> 4  * 60L;
+                case MEDIUM -> 24 * 60L;
+                case LOW    -> 72 * 60L;
+            };
+
+            long minutesRemaining = Duration.between(now, due).toMinutes();
+            long percentRemaining = (minutesRemaining * 100) / totalMinutes;
+
+            // CRITICAL — 10% or less remaining, not yet sent
+            if (percentRemaining <= 10 && !ticket.isSlaCriticalSent()) {
+                ticket.setSlaCriticalSent(true);
+                ticketRepository.save(ticket);
+                eventPublisher.publishEvent(
+                        new TicketEvent(ticket, NotificationType.SLA_CRITICAL));
+                log.warn("SLA CRITICAL: Ticket #{} — {}min remaining ({}% of SLA)",
+                        ticket.getId(), minutesRemaining, percentRemaining);
+            }
+            // WARNING — 25% or less remaining, not yet sent
+            else if (percentRemaining <= 25 && !ticket.isSlaWarningSent()) {
+                ticket.setSlaWarningSent(true);
+                ticketRepository.save(ticket);
+                eventPublisher.publishEvent(
+                        new TicketEvent(ticket, NotificationType.SLA_WARNING));
+                log.info("SLA WARNING: Ticket #{} — {}min remaining ({}% of SLA)",
+                        ticket.getId(), minutesRemaining, percentRemaining);
             }
         }
     }
