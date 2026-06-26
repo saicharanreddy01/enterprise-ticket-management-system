@@ -310,6 +310,65 @@ async function reassignAgent(agent) {
     }
 }
 
+function updateSlaPauseButton(ticket) {
+    const btn   = document.getElementById('slaPauseBtn');
+    const icon  = document.getElementById('slaPauseIcon');
+    const label = document.getElementById('slaPauseLabel');
+    if (!btn) return;
+
+    const role = localStorage.getItem('jwt_role');
+
+    // Only show for ADMIN, and only when ticket is not already resolved/closed
+    const inactiveStatuses = ['RESOLVED', 'CLOSED'];
+    if (role !== 'ADMIN' || inactiveStatuses.includes(ticket.status)) {
+        btn.style.display = 'none';
+        return;
+    }
+
+    btn.style.display = 'inline-flex';
+
+    if (ticket.status === 'PENDING') {
+        // Currently paused — show Resume
+        icon.innerText  = 'play_arrow';
+        label.innerText = 'Resume SLA';
+        btn.style.color = 'var(--g-green)';
+        btn.style.borderColor = 'var(--g-green)';
+    } else {
+        // Currently running — show Pause
+        icon.innerText  = 'pause';
+        label.innerText = 'Pause SLA';
+        btn.style.color = 'var(--g-text-muted)';
+        btn.style.borderColor = 'var(--g-border)';
+    }
+}
+
+async function toggleSlaPause() {
+    if (!currentDetailTicketId) return;
+
+    const ticket = currentTickets.find(t => t.id === currentDetailTicketId);
+    if (!ticket) return;
+
+    const newStatus = ticket.status === 'PENDING' ? 'IN_PROGRESS' : 'PENDING';
+
+    try {
+        await fetchWithAuth(`/api/tickets/${currentDetailTicketId}`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({
+                title:       ticket.title,
+                description: ticket.description,
+                priority:    ticket.priority,
+                status:      newStatus
+            })
+        });
+        await refreshDataPipeline();
+        // Re-open the detail modal with fresh data to reflect the new state
+        openTicketDetail(currentDetailTicketId);
+    } catch (e) {
+        console.error('SLA pause toggle failed:', e);
+    }
+}
+
 // --- 3. Pipeline & Table Rendering ---
 async function refreshDataPipeline() {
     try {
@@ -547,6 +606,7 @@ async function openTicketDetail(id) {
         loadAttachments(ticket.id);
         loadLinkedTickets(ticket.id);
         populateAssignedAgentDropdown(ticket.assignedAgent);
+        updateSlaPauseButton(ticket);
         switchDetailTab('comments');
         document.getElementById('ticketDetailModal').showModal();
     } catch (e) {
