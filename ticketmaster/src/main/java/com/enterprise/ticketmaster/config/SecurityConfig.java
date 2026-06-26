@@ -44,6 +44,7 @@ public class SecurityConfig {
                         // 1. PUBLIC FRONTEND ASSETS (Browsers cannot send JWTs for HTML/CSS files)
                         .requestMatchers("/", "/css/**", "/js/**", "/landing.html", "/login.html", "/index.html", "/favicon.ico", "/error").permitAll()
                         .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                        .requestMatchers("/actuator/health").permitAll()
 
                         // 2. PUBLIC AUTH APIs (So users can actually log in)
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
