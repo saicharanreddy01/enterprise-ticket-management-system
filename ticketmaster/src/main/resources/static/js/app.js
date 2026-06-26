@@ -48,6 +48,8 @@ let consoleCurrentPage = 0;
 let allUsers = [];
 let consoleSearchQuery = '';
 let mainChartInstance = null;
+let volumeChartInstance = null;
+let activeVolumeDays = 30;
 let activeChartTab = 'status';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -98,6 +100,7 @@ function switchView(viewId, el) {
     }
     if (viewId === 'viewReports') {
         loadAgentPerformance();
+        loadVolumeTrend(30);
     }
 }
 
@@ -183,6 +186,84 @@ async function loadAgentPerformance() {
     } catch (e) {
         console.error('Failed to load agent performance:', e);
         tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--g-red); padding:32px;">Failed to load report.</td></tr>';
+    }
+}
+
+async function loadVolumeTrend(days) {
+    activeVolumeDays = days || 30;
+
+    // Highlight active button
+    ['vol7', 'vol30', 'vol90'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) btn.style.fontWeight = id === 'vol' + activeVolumeDays ? '700' : '400';
+    });
+
+    try {
+        const res = await fetchWithAuth(`/api/reports/volume?days=${activeVolumeDays}`, {
+            headers: authHeaders()
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+
+        const labels = data.map(d => {
+            const date = new Date(d.date);
+            return date.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+        });
+        const counts = data.map(d => d.count);
+
+        const ctx = document.getElementById('volumeChart');
+        if (!ctx) return;
+        if (volumeChartInstance) volumeChartInstance.destroy();
+
+        volumeChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'Tickets raised',
+                    data: counts,
+                    borderColor: '#1A73E8',
+                    backgroundColor: 'rgba(26,115,232,0.08)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#1A73E8',
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ` ${ctx.raw} ticket${ctx.raw !== 1 ? 's' : ''}`
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { font: { family: 'Inter', size: 11 }, color: '#5F6368' },
+                        grid: { display: false },
+                        border: { display: false }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            font: { family: 'Inter', size: 11 },
+                            color: '#5F6368',
+                            precision: 0
+                        },
+                        grid: { color: '#F1F3F4' },
+                        border: { display: false }
+                    }
+                }
+            }
+        });
+    } catch (e) {
+        console.error('Volume trend error:', e);
     }
 }
 

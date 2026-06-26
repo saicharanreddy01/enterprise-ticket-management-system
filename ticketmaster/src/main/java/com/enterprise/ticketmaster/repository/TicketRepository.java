@@ -1,15 +1,16 @@
 package com.enterprise.ticketmaster.repository;
 
-import java.util.Collection;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import com.enterprise.ticketmaster.model.Status;
 import com.enterprise.ticketmaster.model.Ticket;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -47,35 +48,43 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     List<Ticket> findAutoCloseCandidates(@Param("status") Status status,
                                          @Param("cutoff") LocalDateTime cutoff);
 
-    @Query(value = """
-    SELECT t.assigned_agent,
-           COUNT(*) AS totalAssigned,
-           SUM(CASE WHEN t.status IN ('RESOLVED','CLOSED') THEN 1 ELSE 0 END) AS totalResolved,
-           SUM(CASE WHEN t.sla_breached = 0 THEN 1 ELSE 0 END) AS slaCompliant
-    FROM tickets t
-    WHERE t.assigned_agent IS NOT NULL
-    GROUP BY t.assigned_agent
-    """, nativeQuery = true)
-    List<Object[]> findAgentAssignmentStats();
-
-    @Query(value = """
-    SELECT t.resolved_by,
-           AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at)) AS avgResolutionMinutes
-    FROM tickets t
-    WHERE t.resolved_by IS NOT NULL
-      AND t.resolved_at IS NOT NULL
-    GROUP BY t.resolved_by
-    """, nativeQuery = true)
-    List<Object[]> findAvgResolutionPerAgent();
-
-    // Finds active tickets that just missed their deadline
-    java.util.List<Ticket> findBySlaBreachedFalseAndStatusNotInAndSlaDueDateBefore(
-            java.util.Collection<Status> statuses,
-            java.time.LocalDateTime now
+    List<Ticket> findBySlaBreachedFalseAndStatusNotInAndSlaDueDateBefore(
+            Collection<Status> statuses,
+            LocalDateTime now
     );
 
     @Query("SELECT t FROM Ticket t WHERE t.slaBreached = false " +
             "AND t.slaDueDate IS NOT NULL " +
             "AND t.status NOT IN :excludedStatuses")
     List<Ticket> findActiveTicketsWithSla(@Param("excludedStatuses") List<Status> excludedStatuses);
+
+    @Query(value = """
+        SELECT t.assigned_agent,
+               COUNT(*) AS totalAssigned,
+               SUM(CASE WHEN t.status IN ('RESOLVED','CLOSED') THEN 1 ELSE 0 END) AS totalResolved,
+               SUM(CASE WHEN t.sla_breached = 0 THEN 1 ELSE 0 END) AS slaCompliant
+        FROM tickets t
+        WHERE t.assigned_agent IS NOT NULL
+        GROUP BY t.assigned_agent
+        """, nativeQuery = true)
+    List<Object[]> findAgentAssignmentStats();
+
+    @Query(value = """
+        SELECT t.resolved_by,
+               AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at)) AS avgResolutionMinutes
+        FROM tickets t
+        WHERE t.resolved_by IS NOT NULL
+          AND t.resolved_at IS NOT NULL
+        GROUP BY t.resolved_by
+        """, nativeQuery = true)
+    List<Object[]> findAvgResolutionPerAgent();
+
+    @Query(value = """
+        SELECT DATE(created_at) AS day, COUNT(*) AS count
+        FROM tickets
+        WHERE created_at >= :from
+        GROUP BY DATE(created_at)
+        ORDER BY day ASC
+        """, nativeQuery = true)
+    List<Object[]> findDailyVolume(@Param("from") LocalDateTime from);
 }

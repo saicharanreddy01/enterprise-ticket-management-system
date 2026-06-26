@@ -457,7 +457,26 @@
                     </table>
                 </div>
             </div>
-
+            <!-- Volume Trend Chart -->
+            <div class="chart-panel" style="margin-top: 24px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;
+                            padding: 16px 24px; border-bottom: 1px solid var(--g-border);">
+                    <span style="font-weight:600; font-size:15px; font-family:var(--font-display);">
+                        Ticket Volume Trend
+                    </span>
+                    <div style="display:flex; gap:8px;">
+                        <button class="g-btn g-btn-text" onclick="loadVolumeTrend(7)"
+                                style="padding:0 12px; height:28px; font-size:12px;" id="vol7">7d</button>
+                        <button class="g-btn g-btn-text" onclick="loadVolumeTrend(30)"
+                                style="padding:0 12px; height:28px; font-size:12px;" id="vol30">30d</button>
+                        <button class="g-btn g-btn-text" onclick="loadVolumeTrend(90)"
+                                style="padding:0 12px; height:28px; font-size:12px;" id="vol90">90d</button>
+                    </div>
+                </div>
+                <div class="chart-body">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
         </div>
     </main>
 </div>
