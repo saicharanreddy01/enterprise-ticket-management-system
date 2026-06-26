@@ -183,4 +183,28 @@ public class TicketService {
         }
         ticketRepository.deleteById(id);
     }
+
+    public Ticket saveTicket(Ticket ticket) {
+        return ticketRepository.save(ticket);
+    }
+
+    public Ticket assignAgent(Long id, String agent, String actor) {
+        Ticket ticket = getTicketById(id);
+        String previousAgent = ticket.getAssignedAgent();
+        ticket.setAssignedAgent(agent);
+        Ticket saved = ticketRepository.save(ticket);
+
+        if (agent != null && !agent.equals(previousAgent)) {
+            TicketHistory h = new TicketHistory();
+            h.setTicketId(id);
+            h.setChangedBy(actor);
+            h.setChangedAt(LocalDateTime.now());
+            h.setFieldName("assignedAgent");
+            h.setOldValue(previousAgent != null ? previousAgent : "Unassigned");
+            h.setNewValue(agent);
+            ticketHistoryRepository.save(h);
+        }
+
+        return saved;
+    }
 }

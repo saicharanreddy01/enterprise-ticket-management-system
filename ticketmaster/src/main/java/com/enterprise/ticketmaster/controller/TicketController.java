@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.controller;
 
+import java.util.Map;
 import org.springframework.data.domain.Page;
 import com.enterprise.ticketmaster.model.Status;
 import org.springframework.security.core.Authentication;
@@ -67,6 +68,15 @@ public class TicketController {
     public ResponseEntity<Ticket> updateTicket(@PathVariable Long id, @Valid @RequestBody Ticket updatedTicket, Authentication authentication) {
         String username = authentication != null ? authentication.getName() : null;
         return ResponseEntity.ok(ticketService.updateTicket(id, updatedTicket, username));
+    }
+
+    @PutMapping("/{id}/assign")
+    public ResponseEntity<Ticket> assignAgent(@PathVariable Long id,
+                                              @RequestBody Map<String, String> body,
+                                              Authentication authentication) {
+        String agent = body.get("assignedAgent");
+        String actor = authentication != null ? authentication.getName() : "system";
+        return ResponseEntity.ok(ticketService.assignAgent(id, agent, actor));
     }
 
     @DeleteMapping("/{id}")

@@ -45,6 +45,7 @@ let ticketIdPendingResolve = null;
 let currentTickets = [];
 let currentDetailTicketId = null;
 let consoleCurrentPage = 0;
+let allUsers = [];
 let consoleSearchQuery = '';
 let mainChartInstance = null;
 let activeChartTab = 'status';
@@ -71,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     refreshDataPipeline();
     loadCategories();
+    loadUsers();
     refreshNotifications();
     // Poll every 60 seconds — matches the SLA breach scheduler cadence so new breach
     // notifications appear in the bell within a minute of being written to the DB
@@ -106,6 +108,58 @@ async function loadCategories() {
             });
         }
     } catch (e) { console.error("Failed to load categories:", e); }
+}
+
+async function loadUsers() {
+    try {
+        const res = await fetchWithAuth('/api/auth/users', { headers: authHeaders() });
+        if (!res.ok) return;
+        allUsers = await res.json();
+    } catch (e) {
+        console.error('Failed to load users:', e);
+    }
+}
+
+function populateAssignedAgentDropdown(currentAgent) {
+    const select = document.getElementById('assignedAgentSelect');
+    const label  = document.getElementById('assignedAgentLabel');
+    if (!select || !label) return;
+
+    const role = localStorage.getItem('jwt_role');
+
+    if (role === 'ADMIN') {
+        // Admin sees the dropdown to assign/reassign
+        select.style.display = 'inline-block';
+        label.style.display  = 'none';
+        select.innerHTML = '<option value="">Unassigned</option>';
+        allUsers.forEach(u => {
+            const opt = document.createElement('option');
+            opt.value = u.username;
+            opt.textContent = u.username + ' (' + u.role + ')';
+            if (u.username === currentAgent) opt.selected = true;
+            select.appendChild(opt);
+        });
+    } else {
+        // Developer sees read-only label
+        select.style.display = 'none';
+        label.style.display  = 'inline-block';
+        label.textContent = currentAgent || 'Unassigned';
+    }
+}
+
+async function reassignAgent(agent) {
+    if (!currentDetailTicketId) return;
+    try {
+        await fetchWithAuth(`/api/tickets/${currentDetailTicketId}/assign`, {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify({ assignedAgent: agent || null })
+        });
+        refreshDataPipeline();
+        loadConsolePage(consoleCurrentPage, consoleSearchQuery);
+    } catch (e) {
+        console.error('Reassignment failed:', e);
+    }
 }
 
 // --- 3. Pipeline & Table Rendering ---
@@ -337,6 +391,7 @@ async function openTicketDetail(id) {
 
         renderComments(ticket.comments || []);
         loadAttachments(ticket.id);
+        populateAssignedAgentDropdown(ticket.assignedAgent);
         switchDetailTab('comments');
         document.getElementById('ticketDetailModal').showModal();
     } catch (e) {

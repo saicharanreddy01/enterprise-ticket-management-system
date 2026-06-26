@@ -538,10 +538,31 @@
         </button>
     </div>
 
-    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0;">
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin: 16px 0; align-items: center;">
         <span class="ticket-chip" id="detailStatusChip"></span>
         <span class="ticket-chip" id="detailPriorityChip"></span>
         <span style="font-size: 12px; border: 1px solid var(--g-border); padding: 4px 10px; border-radius: 100px; color: var(--g-text-muted);" id="detailCategoryChip"></span>
+
+        <!-- Assigned agent pill + reassign dropdown -->
+        <div style="display:flex; align-items:center; gap:6px; margin-left: auto;">
+            <span class="material-symbols-rounded" style="font-size:16px; color:var(--g-text-muted);">person</span>
+            <!-- Admin sees this dropdown -->
+            <select id="assignedAgentSelect"
+                    onchange="reassignAgent(this.value)"
+                    style="display:none; font-size:12px; border:1px solid var(--g-border); border-radius:100px;
+                       padding:4px 28px 4px 10px; background:var(--g-surface);
+                       color:var(--g-text-main); outline:none; cursor:pointer;
+                       appearance:none; font-family:var(--font-ui);">
+                <option value="">Unassigned</option>
+            </select>
+            <!-- Developer sees this read-only label -->
+            <span id="assignedAgentLabel"
+                  style="display:none; font-size:12px; border:1px solid var(--g-border);
+                         border-radius:100px; padding:4px 12px; color:var(--g-text-muted);
+                         font-family:var(--font-ui);">
+                Unassigned
+            </span>
+        </div>
     </div>
 
     <div style="background-color: var(--g-background); padding: 16px; border-radius: 8px; border: 1px solid var(--g-border); margin-bottom: 24px;">

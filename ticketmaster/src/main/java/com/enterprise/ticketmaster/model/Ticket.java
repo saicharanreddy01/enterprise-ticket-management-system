@@ -78,6 +78,9 @@ public class Ticket {
     @Column(name = "assigned_to")
     private String assignedTo; // e.g., "L2_NETWORK_TEAM", "SECURITY_QUEUE", or "DEFAULT_TRIAGE"
 
+    @Column(name = "assigned_agent")
+    private String assignedAgent;
+
     @Column(name = "sla_due_date")
     private java.time.LocalDateTime slaDueDate;
 
@@ -113,14 +116,6 @@ public class Ticket {
     private Boolean slaBreached = false;
 
 
-    public String getAssignedTo() {
-        return assignedTo;
-    }
-
-    public void setAssignedTo(String assignedTo) {
-        this.assignedTo = assignedTo;
-    }
-
     @CreatedDate
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt; // Set automatically by JPA Auditing
@@ -154,6 +149,18 @@ public class Ticket {
     public void setId(Long id) {
         this.id = id;
     }
+
+    public String getAssignedTo() {
+        return assignedTo;
+    }
+
+    public void setAssignedTo(String assignedTo) {
+        this.assignedTo = assignedTo;
+    }
+
+    public String getAssignedAgent() { return assignedAgent; }
+
+    public void setAssignedAgent(String assignedAgent) { this.assignedAgent = assignedAgent; }
 
     public String getTitle() {
         return title;
