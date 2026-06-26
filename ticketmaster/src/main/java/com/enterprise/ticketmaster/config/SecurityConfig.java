@@ -48,6 +48,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login", "/api/auth/refresh", "/api/auth/logout").permitAll()
 
                         // 3. RESTRICTED ADMIN APIs (Access Management & Deletion)
+                        .requestMatchers("/api/reports/**").hasRole("ADMIN")
                         .requestMatchers("/api/auth/register", "/api/auth/users/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/tickets/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/categories").hasRole("ADMIN")

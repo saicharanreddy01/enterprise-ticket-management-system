@@ -219,6 +219,10 @@
             <span class="material-symbols-rounded">view_list</span>
             Operations Console
         </div>
+        <div class="nav-item" id="reportsNavItem" style="display:none;" onclick="switchView('viewReports', this)">
+            <span class="material-symbols-rounded">bar_chart</span>
+            Reports
+        </div>
 
         <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--g-border); display: none;" id="adminNavSection">
             <div style="padding: 0 16px 8px 16px; font-size: 11px; font-weight: 600; color: var(--g-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Administration</div>
@@ -426,18 +430,38 @@
                 </div>
             </div>
 
+            <div id="viewReports" class="app-view">
+                <div class="dashboard-header">
+                    <h2>Agent Performance</h2>
+                    <p>Resolution velocity, response times and SLA compliance per agent.</p>
+                </div>
+
+                <div style="background:var(--g-surface); border:1px solid var(--g-border); border-radius:16px;
+                overflow:hidden; box-shadow:0 1px 2px rgba(60,64,67,0.1);">
+                    <table class="data-table" id="agentPerfTable">
+                        <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th style="text-align:center;">Assigned</th>
+                            <th style="text-align:center;">Resolved</th>
+                            <th style="text-align:center;">Avg Resolution</th>
+                            <th style="text-align:center;">Avg First Response</th>
+                            <th style="text-align:center;">SLA Compliance</th>
+                        </tr>
+                        </thead>
+                        <tbody id="agentPerfBody">
+                        <tr><td colspan="6" style="text-align:center; color:var(--g-text-muted); padding:32px;">
+                            Loading...
+                        </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
         </div>
     </main>
 </div>
 
-<!-- ============================================================
-     RAISE INCIDENT MODAL
-     D2 changes:
-       - Priority select has onchange to hide priorityAiChip
-       - Category select has onchange to hide categoryAiChip
-       - Both AI chips sit directly below their respective selects
-       - Suggest button sits below the description textarea
-     ============================================================ -->
 <dialog id="createModal" class="md-dialog">
     <div class="dialog-header">
         <h3 style="margin: 0; font-family: var(--font-display); font-size: 24px;">Raise Incident</h3>

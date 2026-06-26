@@ -63,6 +63,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const adminSec = document.getElementById('adminNavSection');
         if(adminSec) adminSec.style.display = 'block';
     }
+    if (role === 'ADMIN') {
+        const reportsNav = document.getElementById('reportsNavItem');
+        if (reportsNav) reportsNav.style.display = 'flex';
+    }
 
     // Live Clock
     setInterval(() => {
@@ -92,6 +96,9 @@ function switchView(viewId, el) {
     if (viewId === 'viewConsole') {
         loadConsolePage(0, '');
     }
+    if (viewId === 'viewReports') {
+        loadAgentPerformance();
+    }
 }
 
 async function loadCategories() {
@@ -117,6 +124,65 @@ async function loadUsers() {
         allUsers = await res.json();
     } catch (e) {
         console.error('Failed to load users:', e);
+    }
+}
+
+async function loadAgentPerformance() {
+    const tbody = document.getElementById('agentPerfBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--g-text-muted); padding:32px;">Loading...</td></tr>';
+
+    try {
+        const res = await fetchWithAuth('/api/reports/agent-performance', {
+            headers: authHeaders()
+        });
+        if (!res.ok) return;
+        const agents = await res.json();
+
+        if (!agents.length) {
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--g-text-muted); padding:32px;">No agent data yet. Assign tickets to agents to see metrics.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = agents.map(a => {
+            const slaColor = a.slaComplianceRate >= 80 ? 'var(--g-green)'
+                : a.slaComplianceRate >= 60 ? 'var(--g-yellow)'
+                    : 'var(--g-red)';
+            const resolutionRate = a.totalAssigned > 0
+                ? Math.round((a.totalResolved / a.totalAssigned) * 100) : 0;
+
+            return `
+                <tr>
+                    <td>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div style="width:32px; height:32px; border-radius:50%; background:var(--g-blue-light);
+                                        color:var(--g-blue); display:flex; align-items:center; justify-content:center;
+                                        font-weight:600; font-size:13px; flex-shrink:0;">
+                                ${escapeHtml(a.agent[0].toUpperCase())}
+                            </div>
+                            <span style="font-weight:500;">${escapeHtml(a.agent)}</span>
+                        </div>
+                    </td>
+                    <td style="text-align:center; font-weight:600; color:var(--g-blue);">${a.totalAssigned}</td>
+                    <td style="text-align:center;">
+                        <span style="font-weight:600; color:var(--g-green);">${a.totalResolved}</span>
+                        <span style="font-size:11px; color:var(--g-text-muted);"> (${resolutionRate}%)</span>
+                    </td>
+                    <td style="text-align:center; color:var(--g-text-main);">
+                        ${a.avgResolutionHours > 0 ? a.avgResolutionHours + 'h' : '—'}
+                    </td>
+                    <td style="text-align:center; color:var(--g-text-main);">
+                        ${a.avgFirstResponseHours > 0 ? a.avgFirstResponseHours + 'h' : '—'}
+                    </td>
+                    <td style="text-align:center;">
+                        <span style="font-weight:600; color:${slaColor};">${a.slaComplianceRate}%</span>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (e) {
+        console.error('Failed to load agent performance:', e);
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--g-red); padding:32px;">Failed to load report.</td></tr>';
     }
 }
 
