@@ -622,6 +622,44 @@
         <p id="detailDescription" style="margin: 0; font-size: 14px; line-height: 1.6; white-space: pre-wrap;"></p>
     </div>
 
+    <!-- Linked Tickets section -->
+    <div style="margin-bottom: 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <span style="font-size:12px; font-weight:600; color:var(--g-text-muted); text-transform:uppercase; letter-spacing:0.5px;">Linked Tickets</span>
+            <button class="g-btn g-btn-text" onclick="showLinkForm()"
+                    style="font-size:13px; color:var(--g-blue); display:flex; align-items:center; gap:4px;">
+                <span class="material-symbols-rounded" style="font-size:16px;">add_link</span>
+                Add Link
+            </button>
+        </div>
+
+        <!-- Inline link creation form — hidden by default -->
+        <div id="linkForm" style="display:none; background:var(--g-background); border:1px solid var(--g-border);
+                              border-radius:8px; padding:12px; margin-bottom:10px;">
+            <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                <select id="linkTypeSelect" style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
+                    border-radius:6px; background:var(--g-surface); font-family:var(--font-ui); outline:none;">
+                    <option value="BLOCKS">Blocks</option>
+                    <option value="RELATED_TO">Is related to</option>
+                    <option value="DUPLICATES">Duplicates</option>
+                </select>
+                <span style="font-size:13px; color:var(--g-text-muted);">Ticket #</span>
+                <input type="number" id="linkTargetId" placeholder="Ticket ID"
+                       style="width:100px; font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
+                          border-radius:6px; font-family:var(--font-ui); outline:none;">
+                <button class="g-btn g-btn-primary" onclick="submitLink()"
+                        style="padding:0 16px; height:32px; font-size:13px;">Link</button>
+                <button class="g-btn g-btn-text" onclick="hideLinkForm()"
+                        style="padding:0 12px; height:32px; font-size:13px;">Cancel</button>
+            </div>
+            <div id="linkError" style="display:none; color:var(--g-red); font-size:12px; margin-top:8px;"></div>
+        </div>
+
+        <div id="linkedTicketsList" style="display:flex; flex-direction:column; gap:6px;">
+            <span style="font-size:13px; color:var(--g-text-muted);">No linked tickets.</span>
+        </div>
+    </div>
+
     <!-- Attachments section -->
     <div style="margin-bottom: 24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">

@@ -538,6 +538,7 @@ async function openTicketDetail(id) {
 
         renderComments(ticket.comments || []);
         loadAttachments(ticket.id);
+        loadLinkedTickets(ticket.id);
         populateAssignedAgentDropdown(ticket.assignedAgent);
         switchDetailTab('comments');
         document.getElementById('ticketDetailModal').showModal();
@@ -644,6 +645,114 @@ async function loadAttachments(ticketId) {
         `).join('');
     } catch (e) {
         console.error('Failed to load attachments:', e);
+    }
+}
+
+function showLinkForm() {
+    document.getElementById('linkForm').style.display = 'block';
+    document.getElementById('linkTargetId').focus();
+}
+
+function hideLinkForm() {
+    document.getElementById('linkForm').style.display = 'none';
+    document.getElementById('linkTargetId').value = '';
+    document.getElementById('linkError').style.display = 'none';
+}
+
+async function loadLinkedTickets(ticketId) {
+    const list = document.getElementById('linkedTicketsList');
+    if (!list) return;
+
+    try {
+        const res = await fetchWithAuth(`/api/tickets/${ticketId}/links`, {
+            headers: authHeaders()
+        });
+        const links = await res.json();
+
+        if (!links.length) {
+            list.innerHTML = '<span style="font-size:13px; color:var(--g-text-muted);">No linked tickets.</span>';
+            return;
+        }
+
+        const statusColors = {
+            NEW: 'var(--g-red)', OPEN: 'var(--g-red)', IN_PROGRESS: 'var(--g-blue)',
+            RESOLVED: 'var(--g-green)', CLOSED: 'var(--g-text-muted)', PENDING: 'var(--g-yellow)'
+        };
+
+        list.innerHTML = links.map(l => `
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                        padding:8px 12px; background:var(--g-background);
+                        border:1px solid var(--g-border); border-radius:8px;">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                    <span style="font-size:11px; color:var(--g-text-muted); white-space:nowrap;">
+                        ${escapeHtml(l.label)}
+                    </span>
+                    <span style="color:var(--g-blue); font-weight:500; font-size:13px; cursor:pointer; white-space:nowrap;"
+                          onclick="openTicketDetail(${l.otherTicketId})">
+                        #${l.otherTicketId}
+                    </span>
+                    <span style="font-size:13px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                        ${escapeHtml(l.otherTicketTitle)}
+                    </span>
+                    <span style="font-size:11px; font-weight:600; color:${statusColors[l.otherStatus] || 'var(--g-text-muted)'}; white-space:nowrap;">
+                        ${l.otherStatus}
+                    </span>
+                </div>
+                <button onclick="removeLink(${l.linkId})"
+                        style="background:none; border:none; cursor:pointer; color:var(--g-text-muted);
+                               padding:0 4px; flex-shrink:0;" title="Remove link">
+                    <span class="material-symbols-rounded" style="font-size:16px;">link_off</span>
+                </button>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Failed to load links:', e);
+    }
+}
+
+async function submitLink() {
+    if (!currentDetailTicketId) return;
+    const targetId = document.getElementById('linkTargetId').value.trim();
+    const linkType = document.getElementById('linkTypeSelect').value;
+    const errorDiv = document.getElementById('linkError');
+
+    if (!targetId) {
+        errorDiv.innerText = 'Enter a target ticket ID.';
+        errorDiv.style.display = 'block';
+        return;
+    }
+
+    try {
+        const res = await fetchWithAuth(`/api/tickets/${currentDetailTicketId}/links`, {
+            method: 'POST',
+            headers: authHeaders(),
+            body: JSON.stringify({ targetTicketId: targetId, linkType })
+        });
+
+        if (res.ok) {
+            hideLinkForm();
+            loadLinkedTickets(currentDetailTicketId);
+        } else {
+            const err = await res.json();
+            errorDiv.innerText = err.error || 'Failed to create link.';
+            errorDiv.style.display = 'block';
+        }
+    } catch (e) {
+        errorDiv.innerText = 'Network error.';
+        errorDiv.style.display = 'block';
+    }
+}
+
+async function removeLink(linkId) {
+    if (!currentDetailTicketId) return;
+    try {
+        await fetchWithAuth(`/api/tickets/${currentDetailTicketId}/links/${linkId}`, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
+        loadLinkedTickets(currentDetailTicketId);
+    } catch (e) {
+        console.error('Failed to remove link:', e);
     }
 }
 
