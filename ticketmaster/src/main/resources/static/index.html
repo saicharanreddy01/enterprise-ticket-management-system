@@ -380,9 +380,41 @@
                     </div>
                 </div>
 
+                <!-- Bulk action toolbar — hidden until tickets are selected -->
+                <div id="bulkToolbar" style="display:none; align-items:center; gap:12px; margin-bottom:16px;
+     padding:12px 16px; background:var(--g-blue-light); border-radius:12px;
+     border:1px solid var(--g-blue);">
+                    <span id="bulkCount" style="font-size:13px; font-weight:600; color:var(--g-blue);">0 selected</span>
+                    <div style="display:flex; gap:8px; margin-left:auto; align-items:center;">
+                        <select id="bulkStatusSelect" style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
+                                border-radius:6px; background:var(--g-surface); font-family:var(--font-ui); outline:none;">
+                            <option value="">Change status...</option>
+                            <option value="IN_PROGRESS" class="admin-or-dev">In Progress</option>
+                            <option value="PENDING" class="admin-or-dev">Pending</option>
+                            <option value="RESOLVED" class="admin-or-dev">Resolved</option>
+                            <option value="OPEN" class="admin-only">Open</option>
+                            <option value="CLOSED" class="admin-only">Closed</option>
+                        </select>
+                        <div id="bulkAgentWrapper">
+                            <select id="bulkAgentSelect" style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
+                                    border-radius:6px; background:var(--g-surface); font-family:var(--font-ui); outline:none;">
+                                <option value="">Assign agent...</option>
+                            </select>
+                        </div>
+                        <button class="g-btn g-btn-primary" onclick="applyBulkAction()"
+                                style="padding:0 16px; height:32px; font-size:13px;">Apply</button>
+                        <button class="g-btn g-btn-text" onclick="clearBulkSelection()"
+                                style="padding:0 12px; height:32px; font-size:13px;">Cancel</button>
+                    </div>
+                </div>
+
                 <table class="data-table">
                     <thead>
                     <tr>
+                        <th style="width: 40px;">
+                            <input type="checkbox" id="selectAllCheckbox" onclick="toggleSelectAll(this)"
+                                   style="width:16px; height:16px; cursor:pointer;">
+                        </th>
                         <th style="width: 80px;">ID</th>
                         <th>Subject Summary</th>
                         <th style="width: 120px;">Category</th>

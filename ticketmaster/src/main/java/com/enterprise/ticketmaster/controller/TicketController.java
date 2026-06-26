@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import com.enterprise.ticketmaster.model.TicketSuggestRequest;
 import com.enterprise.ticketmaster.model.TicketSuggestResponse;
 import com.enterprise.ticketmaster.service.ClassifierService;
+import java.util.ArrayList;
 import jakarta.validation.Valid;
 
 import java.util.List;
@@ -80,6 +81,68 @@ public class TicketController {
         String agent = body.get("assignedAgent");
         String actor = authentication != null ? authentication.getName() : "system";
         return ResponseEntity.ok(ticketService.assignAgent(id, agent, actor));
+    }
+
+
+
+    @PutMapping("/bulk-update")
+    public ResponseEntity<?> bulkUpdate(@RequestBody Map<String, Object> body,
+                                        Authentication authentication) {
+        // Role check
+        boolean isAdmin = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        String newStatus        = (String) body.get("status");
+        String newAssignedAgent = (String) body.get("assignedAgent");
+        String actor = authentication != null ? authentication.getName() : "system";
+
+        // Block developers from using CLOSED or OPEN as bulk status
+        if (!isAdmin && newStatus != null &&
+                (newStatus.equals("CLOSED") || newStatus.equals("OPEN"))) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Developers cannot bulk-set status to OPEN or CLOSED."));
+        }
+
+        // Block developers from bulk-assigning agents
+        if (!isAdmin && newAssignedAgent != null && !newAssignedAgent.isBlank()) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(Map.of("error", "Only admins can bulk-assign agents."));
+        }
+
+        @SuppressWarnings("unchecked")
+        List<Integer> ids = (List<Integer>) body.get("ticketIds");
+
+        if (ids == null || ids.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No ticket IDs provided."));
+        }
+
+        List<Ticket> updated = new ArrayList<>();
+        for (Integer rawId : ids) {
+            Long id = rawId.longValue();
+            try {
+                Ticket ticket = ticketService.getTicketById(id);
+                if (newStatus != null && !newStatus.isBlank()) {
+                    ticket = ticketService.updateTicket(id,
+                            buildStatusUpdate(ticket, newStatus), actor);
+                }
+                if (newAssignedAgent != null && !newAssignedAgent.isBlank()) {
+                    ticket = ticketService.assignAgent(id, newAssignedAgent, actor);
+                }
+                updated.add(ticket);
+            } catch (Exception e) {
+                // Skip tickets that fail — don't abort the whole batch
+            }
+        }
+        return ResponseEntity.ok(Map.of("updated", updated.size()));
+    }
+
+    private Ticket buildStatusUpdate(Ticket existing, String status) {
+        Ticket t = new Ticket();
+        t.setTitle(existing.getTitle());
+        t.setDescription(existing.getDescription());
+        t.setPriority(existing.getPriority());
+        t.setStatus(com.enterprise.ticketmaster.model.Status.valueOf(status));
+        return t;
     }
 
     @DeleteMapping("/{id}")

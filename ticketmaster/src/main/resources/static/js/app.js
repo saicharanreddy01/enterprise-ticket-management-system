@@ -46,6 +46,7 @@ let currentTickets = [];
 let currentDetailTicketId = null;
 let consoleCurrentPage = 0;
 let allUsers = [];
+let selectedTicketIds = new Set();
 let consoleSearchQuery = '';
 let mainChartInstance = null;
 let volumeChartInstance = null;
@@ -370,6 +371,12 @@ function renderTable(tickets) {
         const tr = document.createElement('tr');
         tr.className = 'ticket-row'; // Tag for search filter
         tr.innerHTML = `
+            <td style="width:40px;">
+                <input type="checkbox" class="ticket-checkbox" data-id="${t.id}"
+                       style="width:16px; height:16px; cursor:pointer;"
+                       onchange="handleTicketCheckbox(this)"
+                       ${selectedTicketIds.has(t.id) ? 'checked' : ''}>
+            </td>
             <td style="color: var(--g-blue); font-weight: 500; cursor: pointer;" onclick="openTicketDetail(${t.id})">#${t.id}</td>
             <td style="font-weight: 500; color: var(--g-text-main); max-width: 300px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(t.title)}</td>
             <td><span style="font-size: 12px; border: 1px solid var(--g-border); padding: 2px 6px; border-radius: 4px; color: var(--g-text-muted);">${categoryName}</span></td>
@@ -925,6 +932,104 @@ function renderPaginationControls(pageData) {
 
 function changePage(delta) {
     loadConsolePage(consoleCurrentPage + delta, consoleSearchQuery);
+}
+
+function handleTicketCheckbox(checkbox) {
+    const id = parseInt(checkbox.dataset.id);
+    if (checkbox.checked) {
+        selectedTicketIds.add(id);
+    } else {
+        selectedTicketIds.delete(id);
+    }
+    updateBulkToolbar();
+}
+
+function toggleSelectAll(masterCheckbox) {
+    document.querySelectorAll('.ticket-checkbox').forEach(cb => {
+        cb.checked = masterCheckbox.checked;
+        const id = parseInt(cb.dataset.id);
+        if (masterCheckbox.checked) {
+            selectedTicketIds.add(id);
+        } else {
+            selectedTicketIds.delete(id);
+        }
+    });
+    updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+    const toolbar   = document.getElementById('bulkToolbar');
+    const countSpan = document.getElementById('bulkCount');
+    if (!toolbar || !countSpan) return;
+
+    if (selectedTicketIds.size > 0) {
+        toolbar.style.display = 'flex';
+        countSpan.innerText = selectedTicketIds.size + ' selected';
+
+        const role        = localStorage.getItem('jwt_role');
+        const agentSelect = document.getElementById('bulkAgentSelect');
+        const agentWrapper = document.getElementById('bulkAgentWrapper');
+        // Hide admin-only status options for developers
+        const isAdmin = role === 'ADMIN';
+        document.querySelectorAll('#bulkStatusSelect .admin-only').forEach(opt => {
+            opt.style.display = isAdmin ? 'block' : 'none';
+        });
+
+        if (role === 'ADMIN') {
+            if (agentWrapper) agentWrapper.style.display = 'block';
+            agentSelect.innerHTML = '<option value="">Assign agent...</option>';
+            allUsers.forEach(u => {
+                const opt = document.createElement('option');
+                opt.value = u.username;
+                opt.textContent = u.username + ' (' + u.role + ')';
+                agentSelect.appendChild(opt);
+            });
+        } else {
+            if (agentWrapper) agentWrapper.style.display = 'none';
+        }
+    } else {
+        toolbar.style.display = 'none';
+    }
+}
+
+function clearBulkSelection() {
+    selectedTicketIds.clear();
+    document.querySelectorAll('.ticket-checkbox').forEach(cb => cb.checked = false);
+    const master = document.getElementById('selectAllCheckbox');
+    if (master) master.checked = false;
+    updateBulkToolbar();
+}
+
+async function applyBulkAction() {
+    const status      = document.getElementById('bulkStatusSelect').value;
+    const agent       = document.getElementById('bulkAgentSelect').value;
+
+    if (!status && !agent) {
+        alert('Select a status or agent to apply.');
+        return;
+    }
+
+    const role = localStorage.getItem('jwt_role');
+    const body = { ticketIds: Array.from(selectedTicketIds) };
+    if (status) body.status = status;
+    if (agent && role === 'ADMIN') body.assignedAgent = agent;
+
+    try {
+        const res = await fetchWithAuth('/api/tickets/bulk-update', {
+            method: 'PUT',
+            headers: authHeaders(),
+            body: JSON.stringify(body)
+        });
+        const result = await res.json();
+        clearBulkSelection();
+        document.getElementById('bulkStatusSelect').value = '';
+        document.getElementById('bulkAgentSelect').value  = '';
+        refreshDataPipeline();
+        loadConsolePage(consoleCurrentPage, consoleSearchQuery);
+        alert(`${result.updated} ticket(s) updated successfully.`);
+    } catch (e) {
+        console.error('Bulk update failed:', e);
+    }
 }
 
 // --- 4. Admin Feature ---
