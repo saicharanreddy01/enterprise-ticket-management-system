@@ -12,6 +12,7 @@ import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 
 @Service
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "spring.mail.host")
 public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);

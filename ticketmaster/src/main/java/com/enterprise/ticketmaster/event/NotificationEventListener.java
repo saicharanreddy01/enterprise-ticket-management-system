@@ -13,10 +13,11 @@ public class NotificationEventListener {
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
 
-    @Value("${app.mail.notify}")
+    @Value("${app.mail.notify:}")
     private String notifyEmail;
 
     public NotificationEventListener(NotificationRepository notificationRepository,
+                                     @org.springframework.beans.factory.annotation.Autowired(required = false)
                                      EmailService emailService) {
         this.notificationRepository = notificationRepository;
         this.emailService = emailService;
@@ -35,21 +36,29 @@ public class NotificationEventListener {
         switch (event.getType()) {
             case TICKET_CREATED -> {
                 notification.setMessage("New ticket #" + ticketId + " raised: " + title);
-                emailService.sendTicketCreated(notifyEmail, ticketId, title);
-            }
-            case SLA_BREACHED -> {
-                notification.setMessage("SLA breached on ticket #" + ticketId + ": " + title);
-                emailService.sendSlaBreached(notifyEmail, ticketId, title);
+                if (emailService != null && !notifyEmail.isBlank()) {
+                    emailService.sendTicketCreated(notifyEmail, ticketId, title);
+                }
             }
             case SLA_WARNING -> {
                 notification.setMessage("⚠️ SLA warning on ticket #" + ticketId
                         + ": 25% of time remaining — " + title);
-                emailService.sendSlaWarning(notifyEmail, ticketId, title);
+                if (emailService != null && !notifyEmail.isBlank()) {
+                    emailService.sendSlaWarning(notifyEmail, ticketId, title);
+                }
             }
             case SLA_CRITICAL -> {
                 notification.setMessage("🔴 SLA critical on ticket #" + ticketId
                         + ": 10% of time remaining — " + title);
-                emailService.sendSlaCritical(notifyEmail, ticketId, title);
+                if (emailService != null && !notifyEmail.isBlank()) {
+                    emailService.sendSlaCritical(notifyEmail, ticketId, title);
+                }
+            }
+            case SLA_BREACHED -> {
+                notification.setMessage("SLA breached on ticket #" + ticketId + ": " + title);
+                if (emailService != null && !notifyEmail.isBlank()) {
+                    emailService.sendSlaBreached(notifyEmail, ticketId, title);
+                }
             }
             case TICKET_REOPENED ->
                     notification.setMessage("Ticket #" + ticketId + " reopened: " + title);
