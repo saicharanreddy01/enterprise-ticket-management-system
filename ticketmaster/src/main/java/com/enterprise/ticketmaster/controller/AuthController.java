@@ -18,7 +18,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
+import com.enterprise.ticketmaster.repository.SecurityEventRepository;
+import com.enterprise.ticketmaster.model.SecurityEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -33,19 +34,22 @@ public class AuthController {
     private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final SecurityEventRepository securityEventRepository;
 
     public AuthController(UserRepository userRepository,
                           PasswordEncoder passwordEncoder,
                           AuthenticationManager authenticationManager,
                           UserDetailsService userDetailsService,
                           JwtUtil jwtUtil,
-                          RefreshTokenService refreshTokenService) {
+                          RefreshTokenService refreshTokenService,
+                          SecurityEventRepository securityEventRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
+        this.securityEventRepository = securityEventRepository;
     }
 
     public static class UserResponse {
@@ -61,6 +65,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> credentials,
+                                   HttpServletRequest request,
                                    HttpServletResponse response) {
         String username = credentials.get("username");
         String password = credentials.get("password");
@@ -73,6 +78,8 @@ public class AuthController {
                     && user.getLockedUntil().isAfter(java.time.LocalDateTime.now())) {
                 long secondsLeft = java.time.Duration.between(
                         java.time.LocalDateTime.now(), user.getLockedUntil()).getSeconds();
+                logSecurityEvent(SecurityEvent.EventType.LOGIN_BLOCKED, username, request,
+                        "Account locked. " + secondsLeft + "s remaining.");
                 return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                         .body("Account locked. Try again in " + secondsLeft + " second(s).");
             }
@@ -83,13 +90,10 @@ public class AuthController {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(username, password));
         } catch (BadCredentialsException e) {
-
-            // --- Increment failed attempts on wrong password ---
             userOpt.ifPresent(user -> {
                 int attempts = user.getFailedAttempts() + 1;
                 user.setFailedAttempts(attempts);
                 if (attempts >= 10) {
-                    // Lock for 15 minutes after 10 failed attempts
                     user.setLockedUntil(java.time.LocalDateTime.now().plusMinutes(15));
                     user.setFailedAttempts(0);
                     userRepository.save(user);
@@ -97,8 +101,8 @@ public class AuthController {
                     userRepository.save(user);
                 }
             });
-            // --- End increment ---
-
+            logSecurityEvent(SecurityEvent.EventType.LOGIN_FAILURE, username, request,
+                    "Invalid credentials.");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password.");
         }
 
@@ -110,6 +114,8 @@ public class AuthController {
                 userRepository.save(user);
             }
         });
+        logSecurityEvent(SecurityEvent.EventType.LOGIN_SUCCESS, username, request,
+                "Login successful.");
         // --- End reset ---
 
         UserDetails userDetails = userDetailsService.loadUserByUsername(username);
@@ -156,7 +162,8 @@ public class AuthController {
 
         response.addHeader(HttpHeaders.SET_COOKIE, clearAccess.toString());
         response.addHeader(HttpHeaders.SET_COOKIE, clearRefresh.toString());
-
+        logSecurityEvent(SecurityEvent.EventType.LOGOUT,
+                request.getParameter("username"), request, "User logged out.");
         return ResponseEntity.ok(Map.of("message", "Logged out successfully."));
     }
 
@@ -185,7 +192,8 @@ public class AuthController {
                                 // .secure(true)  ← uncomment on HTTPS
                                 .build();
                         response.addHeader(HttpHeaders.SET_COOKIE, accessCookie.toString());
-
+                        logSecurityEvent(SecurityEvent.EventType.TOKEN_REFRESHED,
+                                user.getUsername(), request, "Access token refreshed.");
                         return ResponseEntity.ok(Map.of("message", "Token refreshed."));
                     })
                     .orElseGet(() -> ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -253,5 +261,23 @@ public class AuthController {
             if (name.equals(cookie.getName())) return cookie.getValue();
         }
         return null;
+    }
+
+    private void logSecurityEvent(SecurityEvent.EventType type, String username,
+                                  HttpServletRequest request, String detail) {
+        SecurityEvent event = new SecurityEvent();
+        event.setEventType(type);
+        event.setUsername(username);
+        event.setOccurredAt(java.time.LocalDateTime.now());
+        event.setDetail(detail);
+
+        String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && !ip.isBlank()) {
+            ip = ip.split(",")[0].trim();
+        } else {
+            ip = request.getRemoteAddr();
+        }
+        event.setIpAddress(ip);
+        securityEventRepository.save(event);
     }
 }

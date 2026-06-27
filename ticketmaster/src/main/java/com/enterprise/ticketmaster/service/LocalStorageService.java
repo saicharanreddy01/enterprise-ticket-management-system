@@ -19,7 +19,7 @@ public class LocalStorageService implements StorageService {
 
     private static final Logger log = LoggerFactory.getLogger(LocalStorageService.class);
 
-    @Value("${app.storage.location}")
+    @Value("${app.storage.location:uploads}")
     private String storageLocation;
 
     private Path rootLocation;
