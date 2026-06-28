@@ -191,6 +191,73 @@
             border-radius: 12px;
             margin-top: 6px;
         }
+
+        /* ===== MOBILE RESPONSIVE ===== */
+        #mobileMenuBtn { display: none; }
+        #mobileOverlay {
+            display: none; position: fixed; inset: 0;
+            background: rgba(0,0,0,0.4); z-index: 9;
+        }
+
+        @media (max-width: 768px) {
+            body { overflow: auto; }
+
+            #mobileMenuBtn { display: flex; }
+
+            .app-layout { flex-direction: column; height: auto; min-height: 100vh; }
+
+            .md-nav-drawer {
+                position: fixed; top: 0; left: -280px; height: 100vh;
+                z-index: 10; transition: left 0.25s ease;
+                box-shadow: 4px 0 16px rgba(0,0,0,0.15);
+            }
+            .md-nav-drawer.mobile-open { left: 0; }
+
+            #mobileOverlay.visible { display: block; }
+
+            .md-top-app-bar { padding: 0 16px; }
+
+            #liveClock { display: none; }
+
+            .md-workspace { padding: 16px; }
+
+            .scorecard { flex-direction: column; }
+            .scorecard-cell { border-right: none; border-bottom: 1px solid var(--g-border); }
+            .scorecard-cell:last-child { border-bottom: none; }
+            .metric-value { font-size: 28px; }
+
+            .dashboard-header h2 { font-size: 22px; }
+            .chart-body { height: 220px; }
+
+            .ops-toolbar { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .search-bar { width: 100%; box-sizing: border-box; }
+
+            /* Hide Priority, Status, SLA, Action columns on mobile — keep checkbox, ID, title, category */
+            .data-table th:nth-child(5),
+            .data-table td:nth-child(5),
+            .data-table th:nth-child(6),
+            .data-table td:nth-child(6),
+            .data-table th:nth-child(7),
+            .data-table td:nth-child(7),
+            .data-table th:nth-child(8),
+            .data-table td:nth-child(8) { display: none; }
+
+            /* Prevent table overflow on mobile */
+            .data-table { table-layout: fixed; }
+            .data-table th:nth-child(1),
+            .data-table td:nth-child(1) { width: 40px; }
+            .data-table th:nth-child(2),
+            .data-table td:nth-child(2) { width: 50px; }
+            .data-table th:nth-child(3),
+            .data-table td:nth-child(3) { width: auto; }
+            .data-table th:nth-child(4),
+            .data-table td:nth-child(4) { width: 110px; }
+            .data-table th, .data-table td { padding: 10px 10px; font-size: 12px; }
+
+            .md-dialog { max-width: 95vw; padding: 20px; border-radius: 16px; }
+
+            #bulkToolbar { flex-wrap: wrap; gap: 8px; }
+        }
     </style>
 </head>
 <body>
@@ -236,7 +303,15 @@
     <main class="main-content">
 
         <header class="md-top-app-bar">
-            <h1 class="view-title" id="currentViewTitle">Dashboard Overview</h1>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <button id="mobileMenuBtn" onclick="toggleMobileNav()"
+                        style="width:40px; height:40px; border-radius:50%; border:none; background:transparent;
+                   cursor:pointer; align-items:center; justify-content:center;
+                   color:var(--g-text-muted); flex-shrink:0;">
+                    <span class="material-symbols-rounded" style="font-size:24px;">menu</span>
+                </button>
+                <h1 class="view-title" id="currentViewTitle">Dashboard Overview</h1>
+            </div>
             <div style="display: flex; align-items: center; gap: 24px;">
                 <span style="color: var(--g-text-muted); font-size: 14px;" id="liveClock"></span>
 
@@ -763,5 +838,6 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="/js/app.js"></script>
+<div id="mobileOverlay" onclick="toggleMobileNav()"></div>
 </body>
 </html>

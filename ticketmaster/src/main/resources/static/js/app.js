@@ -25,6 +25,14 @@ async function fetchWithAuth(url, options = {}) {
     return response;
 }
 
+function toggleMobileNav() {
+    const nav     = document.querySelector('.md-nav-drawer');
+    const overlay = document.getElementById('mobileOverlay');
+    const isOpen  = nav.classList.contains('mobile-open');
+    nav.classList.toggle('mobile-open', !isOpen);
+    overlay.classList.toggle('visible', !isOpen);
+}
+
 async function logout() {
     try {
         // Server reads refresh token from cookie, revokes it, and clears both cookies
@@ -95,6 +103,13 @@ function switchView(viewId, el) {
         // Extract text safely without the icon text
         const rawText = el.innerText.replace(/^[a-z_]+\s*/i, '').trim();
         document.getElementById('currentViewTitle').innerText = rawText || "Admin Panel";
+    }
+    // Close mobile nav when navigating
+    if (window.innerWidth <= 768) {
+        const nav = document.querySelector('.md-nav-drawer');
+        const overlay = document.getElementById('mobileOverlay');
+        nav.classList.remove('mobile-open');
+        overlay.classList.remove('visible');
     }
     if (viewId === 'viewConsole') {
         loadConsolePage(0, '');
