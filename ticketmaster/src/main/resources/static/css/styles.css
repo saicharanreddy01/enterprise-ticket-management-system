@@ -176,3 +176,24 @@ h1, h2, h3, h4, h5 { font-family: var(--font-display); font-weight: 500; }
 .notif-row.unread { background: #EEF3FD; }
 .notif-row:hover { background: var(--g-background); }
 .notif-row:last-child { border-bottom: none; }
+
+/* ===== DARK MODE ===== */
+body[data-theme="dark"] {
+    --g-background: #1C1C1E;
+    --g-surface:    #2C2C2E;
+    --g-border:     #3A3A3C;
+    --g-text-main:  #F2F2F7;
+    --g-text-muted: #8E8E93;
+    --g-blue-light: #1C3A5E;
+    --g-blue-dark:  #64B5F6;
+}
+
+body[data-theme="dark"] .nav-item:hover { background-color: #3A3A3C; }
+body[data-theme="dark"] .data-table th  { background: #2C2C2E; }
+body[data-theme="dark"] .data-table tbody tr:hover { background-color: #3A3A3C; }
+body[data-theme="dark"] .g-input-group select ~ label,
+body[data-theme="dark"] .g-input-group textarea:focus ~ label,
+body[data-theme="dark"] .g-input-group textarea:not(:placeholder-shown) ~ label { background-color: #2C2C2E; }
+body[data-theme="dark"] .chart-tab:hover:not(.active) { background: #3A3A3C; }
+body[data-theme="dark"] #F8F9FA,
+body[data-theme="dark"] .data-table th { background-color: #2C2C2E; }

@@ -330,6 +330,12 @@
                           pointer-events: none;"></span>
                 </div>
 
+                <button id="darkModeBtn" onclick="toggleDarkMode()" title="Toggle dark mode"
+                        style="width:40px; height:40px; border-radius:50%; border:none; background:transparent;
+                            cursor:pointer; display:flex; align-items:center; justify-content:center;
+                            color:var(--g-text-muted); transition:background 0.15s;">
+                    <span class="material-symbols-rounded" id="darkModeIcon" style="font-size:22px;">dark_mode</span>
+                </button>
                 <button style="display: flex; align-items: center; gap: 10px; padding: 4px 16px 4px 4px; border-radius: 100px; border: 1px solid var(--g-border); background: transparent; cursor: pointer;" onclick="logout()">
                     <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--g-blue-light); color: var(--g-blue); display: flex; align-items: center; justify-content: center; font-weight: 500; font-size: 14px;" id="userAvatar">A</div>
                     <span style="font-size: 14px; font-weight: 500; color: var(--g-text-muted); margin-right: 4px;">Sign Out</span>

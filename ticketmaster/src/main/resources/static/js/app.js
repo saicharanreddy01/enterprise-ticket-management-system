@@ -33,6 +33,21 @@ function toggleMobileNav() {
     overlay.classList.toggle('visible', !isOpen);
 }
 
+function toggleDarkMode() {
+    const isDark = document.body.getAttribute('data-theme') === 'dark';
+    const icon   = document.getElementById('darkModeIcon');
+
+    if (isDark) {
+        document.body.removeAttribute('data-theme');
+        localStorage.setItem('darkMode', 'false');
+        if (icon) icon.innerText = 'dark_mode';
+    } else {
+        document.body.setAttribute('data-theme', 'dark');
+        localStorage.setItem('darkMode', 'true');
+        if (icon) icon.innerText = 'light_mode';
+    }
+}
+
 async function logout() {
     try {
         // Server reads refresh token from cookie, revokes it, and clears both cookies
@@ -84,6 +99,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date();
         document.getElementById('liveClock').innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }, 1000);
+
+    // Apply saved dark mode preference
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.body.setAttribute('data-theme', 'dark');
+        const icon = document.getElementById('darkModeIcon');
+        if (icon) icon.innerText = 'light_mode';
+    }
 
     refreshDataPipeline();
     loadCategories();
@@ -1383,4 +1405,160 @@ function formatHistoryTimestamp(ts) {
     if (!ts) return '';
     const d = new Date(ts);
     return d.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// ===== J4: KEYBOARD SHORTCUTS =====
+
+// Sequence tracker for two-key shortcuts like G→D, G→C
+let lastKey = null;
+let lastKeyTime = 0;
+
+document.addEventListener('keydown', (e) => {
+    // Never fire shortcuts when user is typing in an input, textarea, or select
+    const tag = document.activeElement.tagName;
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+
+    // Never fire if a modal is open
+    const modals = ['createModal', 'resolveModal', 'ticketDetailModal'];
+    if (modals.some(id => {
+        const el = document.getElementById(id);
+        return el && el.open;
+    })) {
+        // Esc still works to close modals
+        if (e.key === 'Escape') {
+            modals.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.open) el.close();
+            });
+        }
+        return;
+    }
+
+    const now = Date.now();
+    const key = e.key.toLowerCase();
+
+    // Two-key sequence: G → D or G → C (must be within 1 second)
+    if (lastKey === 'g' && (now - lastKeyTime) < 1000) {
+        if (key === 'd') {
+            e.preventDefault();
+            switchView('viewDashboard', document.querySelectorAll('.nav-item')[1]);
+            lastKey = null;
+            return;
+        }
+        if (key === 'c') {
+            e.preventDefault();
+            switchView('viewConsole', document.querySelectorAll('.nav-item')[2]);
+            lastKey = null;
+            return;
+        }
+    }
+
+    // Single-key shortcuts
+    switch (key) {
+        case 'n':
+            e.preventDefault();
+            document.getElementById('createModal')?.showModal();
+            break;
+
+        case 'escape':
+            modals.forEach(id => {
+                const el = document.getElementById(id);
+                if (el && el.open) el.close();
+            });
+            // Also close notification panel and shortcut help
+            document.getElementById('notifPanel').style.display = 'none';
+            notifPanelOpen = false;
+            closeShortcutHelp();
+            break;
+
+        case '?':
+            e.preventDefault();
+            toggleShortcutHelp();
+            break;
+
+        case 'g':
+            lastKey = 'g';
+            lastKeyTime = now;
+            return; // Don't reset lastKey below
+    }
+
+    lastKey = null;
+});
+
+// ===== Shortcut help overlay =====
+function toggleShortcutHelp() {
+    const existing = document.getElementById('shortcutHelpOverlay');
+    if (existing) { existing.remove(); return; }
+
+    const overlay = document.createElement('div');
+    overlay.id = 'shortcutHelpOverlay';
+    overlay.onclick = closeShortcutHelp;
+    overlay.style.cssText = `
+        position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        z-index: 9999; backdrop-filter: blur(2px);
+    `;
+
+    overlay.innerHTML = `
+        <div onclick="event.stopPropagation()" style="
+            background: var(--g-surface); border-radius: 16px; padding: 32px;
+            min-width: 360px; box-shadow: 0 24px 48px rgba(0,0,0,0.2);
+            color: var(--g-text-main); font-family: var(--font-ui);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+                <h3 style="margin:0; font-family:var(--font-display); font-size:18px;">Keyboard Shortcuts</h3>
+                <button onclick="closeShortcutHelp()"
+                        style="border:none; background:transparent; cursor:pointer;
+                               color:var(--g-text-muted); font-size:20px;">✕</button>
+            </div>
+            <table style="width:100%; border-collapse:collapse; font-size:14px;">
+                <tr style="border-bottom:1px solid var(--g-border);">
+                    <td style="padding:10px 0; color:var(--g-text-muted);">Raise new incident</td>
+                    <td style="padding:10px 0; text-align:right;">
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">N</kbd>
+                    </td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--g-border);">
+                    <td style="padding:10px 0; color:var(--g-text-muted);">Go to Dashboard</td>
+                    <td style="padding:10px 0; text-align:right;">
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">G</kbd>
+                        then
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">D</kbd>
+                    </td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--g-border);">
+                    <td style="padding:10px 0; color:var(--g-text-muted);">Go to Console</td>
+                    <td style="padding:10px 0; text-align:right;">
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">G</kbd>
+                        then
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">C</kbd>
+                    </td>
+                </tr>
+                <tr style="border-bottom:1px solid var(--g-border);">
+                    <td style="padding:10px 0; color:var(--g-text-muted);">Close modal / panel</td>
+                    <td style="padding:10px 0; text-align:right;">
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">Esc</kbd>
+                    </td>
+                </tr>
+                <tr>
+                    <td style="padding:10px 0; color:var(--g-text-muted);">Show this help</td>
+                    <td style="padding:10px 0; text-align:right;">
+                        <kbd style="background:var(--g-background); border:1px solid var(--g-border);
+                                    border-radius:4px; padding:2px 8px; font-size:12px;">?</kbd>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    `;
+
+    document.body.appendChild(overlay);
+}
+
+function closeShortcutHelp() {
+    document.getElementById('shortcutHelpOverlay')?.remove();
 }
