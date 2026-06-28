@@ -132,6 +132,16 @@ async function loadCategories() {
                 opt.textContent = c.name; // textContent, not innerHTML — same safety habit as the XSS fix
                 select.appendChild(opt);
             });
+            // Also populate the filter bar category dropdown
+            const filterCat = document.getElementById('filterCategory');
+            if (filterCat) {
+                categories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    filterCat.appendChild(opt);
+                });
+            }
         }
     } catch (e) { console.error("Failed to load categories:", e); }
 }
@@ -962,17 +972,19 @@ let searchDebounceTimer = null;
 function filterTickets() {
     clearTimeout(searchDebounceTimer);
     searchDebounceTimer = setTimeout(() => {
-        const q = document.getElementById('ticketSearch').value.trim();
-        loadConsolePage(0, q);
+        applyFilters();
     }, 400);
 }
 
-async function loadConsolePage(page, q) {
+async function loadConsolePage(page, q, status, priority, categoryId) {
     consoleCurrentPage = page;
     consoleSearchQuery = q || '';
 
     const params = new URLSearchParams({ page, size: 20 });
     if (consoleSearchQuery) params.set('q', consoleSearchQuery);
+    if (status)     params.set('status', status);
+    if (priority)   params.set('priority', priority);
+    if (categoryId) params.set('categoryId', categoryId);
 
     try {
         const response = await fetchWithAuth(`/api/tickets/search?${params}`, {
@@ -1007,6 +1019,33 @@ function renderPaginationControls(pageData) {
 
 function changePage(delta) {
     loadConsolePage(consoleCurrentPage + delta, consoleSearchQuery);
+}
+function applyFilters() {
+    const status     = document.getElementById('filterStatus')?.value || '';
+    const priority   = document.getElementById('filterPriority')?.value || '';
+    const categoryId = document.getElementById('filterCategory')?.value || '';
+    const q          = document.getElementById('ticketSearch')?.value?.trim() || '';
+
+    const activeCount = [status, priority, categoryId].filter(v => v !== '').length;
+    const countBadge  = document.getElementById('activeFilterCount');
+    const clearBtn    = document.getElementById('clearFiltersBtn');
+
+    if (countBadge) {
+        countBadge.style.display = activeCount > 0 ? 'inline-block' : 'none';
+        countBadge.innerText     = activeCount + ' filter' + (activeCount > 1 ? 's' : '') + ' active';
+    }
+    if (clearBtn) clearBtn.style.display = activeCount > 0 ? 'inline-block' : 'none';
+
+    loadConsolePage(0, q, status, priority, categoryId ? Number(categoryId) : null);
+}
+
+function clearFilters() {
+    document.getElementById('filterStatus').value   = '';
+    document.getElementById('filterPriority').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('activeFilterCount').style.display = 'none';
+    document.getElementById('clearFiltersBtn').style.display   = 'none';
+    loadConsolePage(0, consoleSearchQuery);
 }
 
 function handleTicketCheckbox(checkbox) {

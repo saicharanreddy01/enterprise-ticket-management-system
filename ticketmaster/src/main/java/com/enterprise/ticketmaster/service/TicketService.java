@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
 import com.enterprise.ticketmaster.event.TicketEvent;
 import com.enterprise.ticketmaster.repository.CategoryRepository;
+import com.enterprise.ticketmaster.model.Priority;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -65,11 +66,18 @@ public class TicketService {
         return ticketRepository.findAllPaginated(PageRequest.of(page, size));
     }
 
-    public Page<Ticket> searchTickets(String q, int page, int size) {
-        if (q == null || q.isBlank()) {
+    public Page<Ticket> searchTickets(String q, String statusStr, String priorityStr,
+                                      Long categoryId, int page, int size) {
+        if (q == null) q = "";
+        Status status     = (statusStr   != null && !statusStr.isBlank())   ? Status.valueOf(statusStr)     : null;
+        Priority priority = (priorityStr != null && !priorityStr.isBlank()) ? Priority.valueOf(priorityStr) : null;
+
+        // If no filters at all, use the simpler existing query
+        if (q.isBlank() && status == null && priority == null && categoryId == null) {
             return getTicketsPaginated(page, size);
         }
-        return ticketRepository.searchTickets(q, PageRequest.of(page, size));
+        return ticketRepository.searchWithFilters(q, status, priority, categoryId,
+                PageRequest.of(page, size));
     }
 
     public Ticket getTicketById(Long id) {

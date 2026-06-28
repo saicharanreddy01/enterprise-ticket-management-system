@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
+import com.enterprise.ticketmaster.model.Priority;
 
 import java.time.LocalDateTime;
 import java.util.Collection;
@@ -33,6 +34,26 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             countQuery = "SELECT COUNT(t) FROM Ticket t WHERE LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
                     "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))")
     Page<Ticket> searchTickets(@Param("q") String q, Pageable pageable);
+
+    @Query(value = "SELECT t FROM Ticket t LEFT JOIN FETCH t.category LEFT JOIN FETCH t.subCategory " +
+            "WHERE (:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+            "AND (:status IS NULL OR t.status = :status) " +
+            "AND (:priority IS NULL OR t.priority = :priority) " +
+            "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
+            "ORDER BY t.id DESC",
+            countQuery = "SELECT COUNT(t) FROM Ticket t " +
+                    "WHERE (:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                    "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+                    "AND (:status IS NULL OR t.status = :status) " +
+                    "AND (:priority IS NULL OR t.priority = :priority) " +
+                    "AND (:categoryId IS NULL OR t.category.id = :categoryId)")
+    Page<Ticket> searchWithFilters(
+            @Param("q") String q,
+            @Param("status") Status status,
+            @Param("priority") Priority priority,
+            @Param("categoryId") Long categoryId,
+            Pageable pageable);
 
     @Query("SELECT DISTINCT t FROM Ticket t " +
             "LEFT JOIN FETCH t.category " +

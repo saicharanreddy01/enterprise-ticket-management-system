@@ -455,10 +455,54 @@
                     </div>
                 </div>
 
+                <!-- J2: Filter bar -->
+                <div id="filterBar" style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap; align-items:center;">
+                    <select id="filterStatus" onchange="applyFilters()"
+                            style="font-size:13px; padding:6px 12px; border:1px solid var(--g-border);
+                                border-radius:100px; background:var(--g-surface); font-family:var(--font-ui);
+                                outline:none; cursor:pointer; color:var(--g-text-muted);">
+                        <option value="">All Statuses</option>
+                        <option value="OPEN">Open</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="PENDING">Pending</option>
+                        <option value="RESOLVED">Resolved</option>
+                        <option value="CLOSED">Closed</option>
+                        <option value="REOPENED">Reopened</option>
+                    </select>
+
+                    <select id="filterPriority" onchange="applyFilters()"
+                            style="font-size:13px; padding:6px 12px; border:1px solid var(--g-border);
+                                border-radius:100px; background:var(--g-surface); font-family:var(--font-ui);
+                                outline:none; cursor:pointer; color:var(--g-text-muted);">
+                        <option value="">All Priorities</option>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                    </select>
+
+                    <select id="filterCategory" onchange="applyFilters()"
+                            style="font-size:13px; padding:6px 12px; border:1px solid var(--g-border);
+                                border-radius:100px; background:var(--g-surface); font-family:var(--font-ui);
+                                outline:none; cursor:pointer; color:var(--g-text-muted);">
+                        <option value="">All Categories</option>
+                    </select>
+
+                    <button id="clearFiltersBtn" onclick="clearFilters()"
+                            style="display:none; font-size:13px; padding:6px 12px; border:1px solid var(--g-red);
+                                border-radius:100px; background:transparent; font-family:var(--font-ui);
+                                color:var(--g-red); cursor:pointer;">
+                        ✕ Clear filters
+                    </button>
+
+                    <span id="activeFilterCount" style="display:none; font-size:12px; font-weight:600;
+                        color:var(--g-blue); background:var(--g-blue-light); padding:4px 10px; border-radius:100px;">
+                    </span>
+                </div>
+
                 <!-- Bulk action toolbar — hidden until tickets are selected -->
                 <div id="bulkToolbar" style="display:none; align-items:center; gap:12px; margin-bottom:16px;
-     padding:12px 16px; background:var(--g-blue-light); border-radius:12px;
-     border:1px solid var(--g-blue);">
+                    padding:12px 16px; background:var(--g-blue-light); border-radius:12px;
+                     border:1px solid var(--g-blue);">
                     <span id="bulkCount" style="font-size:13px; font-weight:600; color:var(--g-blue);">0 selected</span>
                     <div style="display:flex; gap:8px; margin-left:auto; align-items:center;">
                         <select id="bulkStatusSelect" style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);

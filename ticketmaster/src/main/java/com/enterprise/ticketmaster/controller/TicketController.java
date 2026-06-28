@@ -41,9 +41,12 @@ public class TicketController {
     @GetMapping("/search")
     public ResponseEntity<Page<Ticket>> searchTickets(
             @RequestParam(required = false, defaultValue = "") String q,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ticketService.searchTickets(q, page, size));
+        return ResponseEntity.ok(ticketService.searchTickets(q, status, priority, categoryId, page, size));
     }
 
     @PostMapping
