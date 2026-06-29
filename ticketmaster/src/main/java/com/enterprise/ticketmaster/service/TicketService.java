@@ -72,12 +72,17 @@ public class TicketService {
         Status status     = (statusStr   != null && !statusStr.isBlank())   ? Status.valueOf(statusStr)     : null;
         Priority priority = (priorityStr != null && !priorityStr.isBlank()) ? Priority.valueOf(priorityStr) : null;
 
-        // If no filters at all, use the simpler existing query
+        // Parse numeric ID from query string
+        Long numericQ = null;
+        try {
+            if (!q.isBlank()) numericQ = Long.parseLong(q.trim().replace("#", ""));
+        } catch (NumberFormatException ignored) {}
+
         if (q.isBlank() && status == null && priority == null && categoryId == null) {
             return getTicketsPaginated(page, size);
         }
-        return ticketRepository.searchWithFilters(q, status, priority, categoryId,
-                PageRequest.of(page, size));
+        return ticketRepository.searchWithFilters(q, numericQ, status, priority,
+                categoryId, PageRequest.of(page, size));
     }
 
     public Ticket getTicketById(Long id) {

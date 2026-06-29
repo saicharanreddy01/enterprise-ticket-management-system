@@ -20,6 +20,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import com.enterprise.ticketmaster.repository.SecurityEventRepository;
 import com.enterprise.ticketmaster.model.SecurityEvent;
+import com.enterprise.ticketmaster.model.PasswordResetRequest;
+import com.enterprise.ticketmaster.repository.PasswordResetRequestRepository;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -35,6 +37,7 @@ public class AuthController {
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
     private final SecurityEventRepository securityEventRepository;
+    private final PasswordResetRequestRepository passwordResetRequestRepository;
 
     public AuthController(UserRepository userRepository,
                           PasswordEncoder passwordEncoder,
@@ -42,7 +45,8 @@ public class AuthController {
                           UserDetailsService userDetailsService,
                           JwtUtil jwtUtil,
                           RefreshTokenService refreshTokenService,
-                          SecurityEventRepository securityEventRepository) {
+                          SecurityEventRepository securityEventRepository,
+                          PasswordResetRequestRepository passwordResetRequestRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -50,6 +54,7 @@ public class AuthController {
         this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
         this.securityEventRepository = securityEventRepository;
+        this.passwordResetRequestRepository = passwordResetRequestRepository;
     }
 
     public static class UserResponse {
@@ -279,5 +284,83 @@ public class AuthController {
         }
         event.setIpAddress(ip);
         securityEventRepository.save(event);
+    }
+
+    // User submits forgot password request from login page
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String username = body.get("username");
+        if (username == null || username.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Username is required."));
+        }
+        if (userRepository.findByUsername(username).isEmpty()) {
+            // Don't reveal whether username exists — always return success
+            return ResponseEntity.ok(Map.of("message", "If this account exists, an admin has been notified."));
+        }
+
+        // Check if there's already a pending request for this user
+        boolean alreadyPending = passwordResetRequestRepository
+                .findTopByUsernameAndStatusOrderByRequestedAtDesc(
+                        username, PasswordResetRequest.RequestStatus.PENDING)
+                .isPresent();
+        if (alreadyPending) {
+            return ResponseEntity.ok(Map.of("message", "A request is already pending. Please contact your administrator."));
+        }
+
+        PasswordResetRequest req = new PasswordResetRequest();
+        req.setUsername(username);
+        req.setRequestedAt(java.time.LocalDateTime.now());
+        req.setStatus(PasswordResetRequest.RequestStatus.PENDING);
+        passwordResetRequestRepository.save(req);
+
+        return ResponseEntity.ok(Map.of("message", "Your request has been submitted. An administrator will reset your password shortly."));
+    }
+
+    // Admin views all pending password reset requests
+    @GetMapping("/password-requests")
+    public ResponseEntity<List<PasswordResetRequest>> getPasswordRequests() {
+        return ResponseEntity.ok(passwordResetRequestRepository
+                .findByStatusOrderByRequestedAtDesc(PasswordResetRequest.RequestStatus.PENDING));
+    }
+
+    // Admin resets a user's password
+    @PostMapping("/password-requests/{id}/reset")
+    public ResponseEntity<?> resetPasswordByAdmin(@PathVariable Long id,
+                                                  @RequestBody Map<String, String> body,
+                                                  org.springframework.security.core.Authentication authentication) {
+        String newPassword = body.get("newPassword");
+        if (newPassword == null || newPassword.length() < 8) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Password must be at least 8 characters."));
+        }
+
+        PasswordResetRequest req = passwordResetRequestRepository.findById(id)
+                .orElseThrow(() -> new com.enterprise.ticketmaster.exception.ResourceNotFoundException("Request not found."));
+
+        userRepository.findByUsername(req.getUsername()).ifPresent(user -> {
+            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setFailedAttempts(0);
+            user.setLockedUntil(null);
+            userRepository.save(user);
+        });
+
+        req.setStatus(PasswordResetRequest.RequestStatus.RESOLVED);
+        req.setResolvedAt(java.time.LocalDateTime.now());
+        req.setResolvedBy(authentication != null ? authentication.getName() : "admin");
+        passwordResetRequestRepository.save(req);
+
+        return ResponseEntity.ok(Map.of("message", "Password reset successfully."));
+    }
+
+    // Admin dismisses a request without resetting
+    @PutMapping("/password-requests/{id}/dismiss")
+    public ResponseEntity<?> dismissPasswordRequest(@PathVariable Long id,
+                                                    org.springframework.security.core.Authentication authentication) {
+        PasswordResetRequest req = passwordResetRequestRepository.findById(id)
+                .orElseThrow(() -> new com.enterprise.ticketmaster.exception.ResourceNotFoundException("Request not found."));
+        req.setStatus(PasswordResetRequest.RequestStatus.DISMISSED);
+        req.setResolvedAt(java.time.LocalDateTime.now());
+        req.setResolvedBy(authentication != null ? authentication.getName() : "admin");
+        passwordResetRequestRepository.save(req);
+        return ResponseEntity.ok(Map.of("message", "Request dismissed."));
     }
 }

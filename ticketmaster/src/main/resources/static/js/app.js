@@ -48,6 +48,23 @@ function toggleDarkMode() {
     }
 }
 
+function toggleNavCollapse() {
+    const nav = document.querySelector('.md-nav-drawer');
+    nav.classList.toggle('nav-collapsed');
+    localStorage.setItem('navCollapsed', nav.classList.contains('nav-collapsed'));
+}
+
+function updateCharCounter() {
+    const textarea = document.getElementById('description');
+    const counter  = document.getElementById('descCharCounter');
+    if (!textarea || !counter) return;
+    const len = textarea.value.length;
+    counter.innerText = len + ' / 1000';
+    counter.className = 'char-counter';
+    if (len >= 1000) counter.classList.add('at-limit');
+    else if (len >= 850) counter.classList.add('near-limit');
+}
+
 async function logout() {
     try {
         // Server reads refresh token from cookie, revokes it, and clears both cookies
@@ -86,12 +103,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // 4. Role-Based Access Control (Admin Reveal)
     const role = localStorage.getItem('jwt_role');
     if (role === 'ADMIN') {
-        const adminSec = document.getElementById('adminNavSection');
-        if(adminSec) adminSec.style.display = 'block';
-    }
-    if (role === 'ADMIN') {
-        const reportsNav = document.getElementById('reportsNavItem');
-        if (reportsNav) reportsNav.style.display = 'flex';
+        const reportsNav    = document.getElementById('reportsNavItem');
+        const accessMgmtNav = document.getElementById('accessMgmtNavItem');
+        if (reportsNav)    reportsNav.style.display    = 'flex';
+        if (accessMgmtNav) accessMgmtNav.style.display = 'flex';
     }
 
     // Live Clock
@@ -99,6 +114,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const d = new Date();
         document.getElementById('liveClock').innerText = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }, 1000);
+
+    // Apply saved nav collapse state
+    if (localStorage.getItem('navCollapsed') === 'true') {
+        document.querySelector('.md-nav-drawer')?.classList.add('nav-collapsed');
+    }
 
     // Apply saved dark mode preference
     if (localStorage.getItem('darkMode') === 'true') {
@@ -111,6 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCategories();
     loadUsers();
     refreshNotifications();
+    if (localStorage.getItem('jwt_role') === 'ADMIN') {
+        fetchWithAuth('/api/auth/password-requests', { headers: authHeaders() })
+            .then(r => r.json())
+            .then(data => {
+                const badge = document.getElementById('statRequests');
+                if (badge) badge.innerText = data.length;
+            }).catch(() => {});
+    }
     // Poll every 60 seconds — matches the SLA breach scheduler cadence so new breach
     // notifications appear in the bell within a minute of being written to the DB
     setInterval(refreshNotifications, 60000);
@@ -123,8 +151,8 @@ function switchView(viewId, el) {
     if (el) {
         el.classList.add('active');
         // Extract text safely without the icon text
-        const rawText = el.innerText.replace(/^[a-z_]+\s*/i, '').trim();
-        document.getElementById('currentViewTitle').innerText = rawText || "Admin Panel";
+        const label = el.querySelector('.nav-label');
+        document.getElementById('currentViewTitle').innerText = label ? label.innerText.trim() : 'Workspace';
     }
     // Close mobile nav when navigating
     if (window.innerWidth <= 768) {
@@ -139,6 +167,9 @@ function switchView(viewId, el) {
     if (viewId === 'viewReports') {
         loadAgentPerformance();
         loadVolumeTrend(30);
+    }
+    if (viewId === 'viewSettings') {
+        switchSettingsTab('tabUsers');
     }
 }
 
@@ -1172,7 +1203,7 @@ async function applyBulkAction() {
 async function adminRegisterUser() {
     const u = document.getElementById('regUser').value;
     const p = document.getElementById('regPass').value;
-    const r = document.getElementById('regRole').value;
+    const r = document.querySelector('input[name="regRole"]:checked')?.value || 'DEVELOPER';
     const msgBox = document.getElementById('adminMsg');
 
     try {
@@ -1181,17 +1212,245 @@ async function adminRegisterUser() {
             body: JSON.stringify({ username: u, password: p, role: r })
         });
         if (response.ok) {
-            msgBox.style.display = 'block'; msgBox.style.backgroundColor = '#E6F4EA'; msgBox.style.color = '#1E8E3E';
-            msgBox.innerText = `Success: ${u} provisioned as ${r}`;
-            document.getElementById('regUser').value = ''; document.getElementById('regPass').value = '';
+            msgBox.style.display = 'block';
+            msgBox.style.backgroundColor = '#E6F4EA';
+            msgBox.style.color = '#1E8E3E';
+            msgBox.innerText = `✓ Account created successfully for ${u}`;
+            document.getElementById('regUser').value = '';
+            document.getElementById('regPass').value = '';
+            loadUserDirectory();
         } else {
-            msgBox.style.display = 'block'; msgBox.style.backgroundColor = '#FCE8E6'; msgBox.style.color = '#C5221F';
-            msgBox.innerText = "Error: Could not register user (Might already exist).";
+            const err = await response.text();
+            msgBox.style.display = 'block';
+            msgBox.style.backgroundColor = '#FCE8E6';
+            msgBox.style.color = '#C5221F';
+            msgBox.innerText = err || 'Error: Could not register user.';
         }
     } catch(e) {
-        msgBox.style.display = 'block'; msgBox.style.backgroundColor = '#FCE8E6'; msgBox.style.color = '#C5221F';
-        msgBox.innerText = "Network Error.";
+        msgBox.style.display = 'block';
+        msgBox.style.backgroundColor = '#FCE8E6';
+        msgBox.style.color = '#C5221F';
+        msgBox.innerText = 'Network Error.';
     }
+}
+
+function switchSettingsTab(tabId) {
+    ['tabUsers', 'tabRegister', 'tabRequests'].forEach(id => {
+        const panel = document.getElementById('settingsPanel-' + id);
+        const btn   = document.getElementById('settingsTab-' + id);
+        if (!panel || !btn) return;
+        const isActive = id === tabId;
+        panel.style.display = isActive ? 'block' : 'none';
+        btn.style.borderBottomColor = isActive ? 'var(--g-blue)' : 'transparent';
+        btn.style.color = isActive ? 'var(--g-blue)' : 'var(--g-text-muted)';
+    });
+
+    if (tabId === 'tabUsers')    loadUserDirectory();
+    if (tabId === 'tabRequests') loadPasswordRequests();
+}
+
+function updateRoleSelection() {
+    const devSelected   = document.getElementById('regRoleDev')?.checked;
+    const labelDev      = document.getElementById('roleLabelDev');
+    const labelAdmin    = document.getElementById('roleLabelAdmin');
+    if (labelDev)   labelDev.style.borderColor   = devSelected ? 'var(--g-blue)' : 'var(--g-border)';
+    if (labelAdmin) labelAdmin.style.borderColor = !devSelected ? '#EA4335' : 'var(--g-border)';
+}
+
+async function loadUserDirectory() {
+    const container = document.getElementById('userDirectoryList');
+    if (!container) return;
+
+    try {
+        const res   = await fetchWithAuth('/api/auth/users', { headers: authHeaders() });
+        const users = await res.json();
+
+        // Update stats
+        const admins = users.filter(u => u.role === 'ADMIN').length;
+        const devs   = users.filter(u => u.role === 'DEVELOPER').length;
+        document.getElementById('statTotalUsers').innerText = users.length;
+        document.getElementById('statAdmins').innerText     = admins;
+        document.getElementById('statDevs').innerText       = devs;
+
+        const currentUser = localStorage.getItem('jwt_username');
+
+        container.innerHTML = `
+            <div style="background:var(--g-surface); border:1px solid var(--g-border);
+                        border-radius:16px; overflow:hidden;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th style="width:130px;">Role</th>
+                            <th style="width:100px; text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${users.map(u => `
+                            <tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:12px;">
+                                        <div style="width:36px; height:36px; border-radius:50%; flex-shrink:0;
+                                                    background:${u.role === 'ADMIN' ? '#FCE8E6' : '#E8F0FE'};
+                                                    color:${u.role === 'ADMIN' ? '#EA4335' : 'var(--g-blue)'};
+                                                    display:flex; align-items:center; justify-content:center;
+                                                    font-weight:600; font-size:14px;">
+                                            ${u.username[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:500; font-size:14px;">${escapeHtml(u.username)}</div>
+                                            <div style="font-size:12px; color:var(--g-text-muted);">ID #${u.id}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span style="display:inline-flex; align-items:center; gap:4px; font-size:12px;
+                                                 font-weight:600; padding:4px 10px; border-radius:100px;
+                                                 background:${u.role === 'ADMIN' ? '#FCE8E6' : '#E8F0FE'};
+                                                 color:${u.role === 'ADMIN' ? '#EA4335' : 'var(--g-blue)'};">
+                                        ${u.role}
+                                    </span>
+                                </td>
+                                <td style="text-align:right;">
+                                    ${u.username !== currentUser ? `
+                                        <button onclick="deleteUserFromDirectory(${u.id}, '${escapeHtml(u.username)}')"
+                                                style="font-size:12px; color:var(--g-red); border:1px solid var(--g-red);
+                                                       background:transparent; border-radius:100px; padding:4px 12px;
+                                                       cursor:pointer;">
+                                            Remove
+                                        </button>` : `
+                                        <span style="font-size:12px; color:var(--g-text-muted);">You</span>`
+        }
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch(e) {
+        container.innerHTML = '<p style="color:var(--g-red); font-size:13px;">Failed to load users.</p>';
+    }
+}
+
+async function deleteUserFromDirectory(id, username) {
+    if (!confirm(`Remove user "${username}"? This cannot be undone.`)) return;
+    try {
+        await fetchWithAuth(`/api/auth/users/${id}`, { method: 'DELETE', headers: authHeaders() });
+        loadUserDirectory();
+    } catch(e) {
+        console.error('Failed to delete user:', e);
+    }
+}
+
+async function loadPasswordRequests() {
+    const container = document.getElementById('passwordRequestsList');
+    if (!container) return;
+
+    try {
+        const res      = await fetchWithAuth('/api/auth/password-requests', { headers: authHeaders() });
+        const requests = await res.json();
+
+        // Update badge
+        const badge = document.getElementById('statRequests');
+        if (badge) badge.innerText = requests.length;
+
+        if (!requests.length) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:48px; background:var(--g-surface);
+                            border:1px solid var(--g-border); border-radius:16px;">
+                    <span class="material-symbols-rounded" style="font-size:48px; color:var(--g-text-muted);">lock_open</span>
+                    <p style="color:var(--g-text-muted); margin:12px 0 0 0; font-size:14px;">
+                        No pending password reset requests.
+                    </p>
+                </div>`;
+            return;
+        }
+
+        container.innerHTML = `
+            <div style="background:var(--g-surface); border:1px solid var(--g-border);
+                        border-radius:16px; overflow:hidden;">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th style="width:180px;">Requested At</th>
+                            <th style="width:280px; text-align:right;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${requests.map(r => `
+                            <tr>
+                                <td>
+                                    <div style="display:flex; align-items:center; gap:12px;">
+                                        <div style="width:36px; height:36px; border-radius:50%; background:#FEF7E0;
+                                                    color:#B06000; display:flex; align-items:center;
+                                                    justify-content:center; font-weight:600; font-size:14px;">
+                                            ${r.username[0].toUpperCase()}
+                                        </div>
+                                        <div>
+                                            <div style="font-weight:500;">${escapeHtml(r.username)}</div>
+                                            <div style="font-size:12px; color:var(--g-yellow); font-weight:600;">
+                                                🔐 Requesting password reset
+                                            </div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td style="font-size:13px; color:var(--g-text-muted);">
+                                    ${new Date(r.requestedAt).toLocaleString('en-IN', {dateStyle:'medium', timeStyle:'short'})}
+                                </td>
+                                <td style="text-align:right;">
+                                    <div style="display:flex; gap:8px; justify-content:flex-end; align-items:center;">
+                                        <input type="password" id="newPass-${r.id}"
+                                               placeholder="New password"
+                                               style="font-size:12px; padding:6px 10px; border:1px solid var(--g-border);
+                                                      border-radius:6px; font-family:var(--font-ui); outline:none;
+                                                      width:140px;">
+                                        <button onclick="resetUserPassword(${r.id})"
+                                                class="g-btn g-btn-primary"
+                                                style="padding:0 12px; height:30px; font-size:12px;">
+                                            Reset
+                                        </button>
+                                        <button onclick="dismissPasswordRequest(${r.id})"
+                                                style="font-size:12px; color:var(--g-text-muted); border:1px solid var(--g-border);
+                                                       background:transparent; border-radius:100px; padding:4px 12px; cursor:pointer;">
+                                            Dismiss
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`;
+    } catch(e) {
+        container.innerHTML = '<p style="color:var(--g-red); font-size:13px;">Failed to load requests.</p>';
+    }
+}
+
+async function resetUserPassword(requestId) {
+    const input = document.getElementById('newPass-' + requestId);
+    const newPassword = input?.value?.trim();
+    if (!newPassword || newPassword.length < 8) {
+        alert('Password must be at least 8 characters.');
+        return;
+    }
+    try {
+        const res = await fetchWithAuth(`/api/auth/password-requests/${requestId}/reset`, {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ newPassword })
+        });
+        if (res.ok) loadPasswordRequests();
+        else alert('Failed to reset password.');
+    } catch(e) { console.error(e); }
+}
+
+async function dismissPasswordRequest(requestId) {
+    try {
+        await fetchWithAuth(`/api/auth/password-requests/${requestId}/dismiss`, {
+            method: 'PUT', headers: authHeaders()
+        });
+        loadPasswordRequests();
+    } catch(e) { console.error(e); }
 }
 
 // --- Forms & Modals ---
@@ -1208,6 +1467,7 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
         })
     });
     document.getElementById('ticketForm').reset();
+    updateCharCounter();
     document.getElementById('createModal').close();
 
     // Switch to Ops view to see the new ticket

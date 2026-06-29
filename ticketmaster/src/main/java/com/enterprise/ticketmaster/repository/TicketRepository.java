@@ -29,27 +29,35 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
     Page<Ticket> findAllPaginated(Pageable pageable);
 
     @Query(value = "SELECT t FROM Ticket t LEFT JOIN FETCH t.category LEFT JOIN FETCH t.subCategory " +
-            "WHERE LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
-            "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) ORDER BY t.id DESC",
-            countQuery = "SELECT COUNT(t) FROM Ticket t WHERE LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
-                    "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))")
-    Page<Ticket> searchTickets(@Param("q") String q, Pageable pageable);
+            "WHERE (LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "OR (:numericQ IS NOT NULL AND t.id = :numericQ)) ORDER BY t.id DESC",
+            countQuery = "SELECT COUNT(t) FROM Ticket t " +
+                    "WHERE (LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                    "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                    "OR (:numericQ IS NOT NULL AND t.id = :numericQ))")
+    Page<Ticket> searchTickets(@Param("q") String q,
+                               @Param("numericQ") Long numericQ,
+                               Pageable pageable);
 
     @Query(value = "SELECT t FROM Ticket t LEFT JOIN FETCH t.category LEFT JOIN FETCH t.subCategory " +
-            "WHERE (:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+            "WHERE ((:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
             "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+            "OR (:numericQ IS NOT NULL AND t.id = :numericQ)) " +
             "AND (:status IS NULL OR t.status = :status) " +
             "AND (:priority IS NULL OR t.priority = :priority) " +
             "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
             "ORDER BY t.id DESC",
             countQuery = "SELECT COUNT(t) FROM Ticket t " +
-                    "WHERE (:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
+                    "WHERE ((:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
                     "OR LOWER(t.description) LIKE LOWER(CONCAT('%', :q, '%'))) " +
+                    "OR (:numericQ IS NOT NULL AND t.id = :numericQ)) " +
                     "AND (:status IS NULL OR t.status = :status) " +
                     "AND (:priority IS NULL OR t.priority = :priority) " +
                     "AND (:categoryId IS NULL OR t.category.id = :categoryId)")
     Page<Ticket> searchWithFilters(
             @Param("q") String q,
+            @Param("numericQ") Long numericQ,
             @Param("status") Status status,
             @Param("priority") Priority priority,
             @Param("categoryId") Long categoryId,

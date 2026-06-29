@@ -82,7 +82,8 @@
         </div>
 
         <div class="action-row">
-            <a href="#" style="color: var(--g-blue); text-decoration: none; font-weight: 500; font-size: 14px;">Forgot password?</a>
+            <a href="#" onclick="showForgotPassword(event)"
+               style="color: var(--g-blue); text-decoration: none; font-weight: 500; font-size: 14px;">Forgot password?</a>
             <button class="g-btn g-btn-primary" onclick="login()">Next</button>
         </div>
 
@@ -131,6 +132,35 @@
             errMessage.innerText = "Couldn't connect to server.";
             errContainer.style.display = 'block';
         }
+    }
+    function showForgotPassword(e) {
+        e.preventDefault();
+        const username = document.getElementById('username').value.trim();
+        const errContainer = document.getElementById('errorContainer');
+        const errMessage = document.getElementById('errorMessage');
+
+        const name = username || prompt('Enter your username:');
+        if (!name) return;
+
+        fetch('/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: name })
+        })
+            .then(r => r.json())
+            .then(data => {
+                errContainer.style.display = 'block';
+                errContainer.style.backgroundColor = '#E6F4EA';
+                errContainer.querySelector('span[id="errorMessage"]').style.color = '#1E8E3E';
+                errMessage.innerText = data.message;
+                errMessage.style.color = '#1E8E3E';
+                errContainer.querySelector('.material-symbols-rounded').innerText = 'check_circle';
+                errContainer.querySelector('.material-symbols-rounded').style.color = '#1E8E3E';
+            })
+            .catch(() => {
+                errMessage.innerText = "Couldn't connect to server.";
+                errContainer.style.display = 'block';
+            });
     }
 </script>
 </body>

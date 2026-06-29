@@ -258,6 +258,32 @@
 
             #bulkToolbar { flex-wrap: wrap; gap: 8px; }
         }
+
+        /* Nav collapse */
+        .md-nav-drawer { transition: width 0.25s ease, padding 0.25s ease; }
+        .md-nav-drawer.nav-collapsed { width: 68px; padding: 16px 8px; overflow: hidden; }
+        .md-nav-drawer.nav-collapsed .nav-label { display: none; }
+        .md-nav-drawer.nav-collapsed .drawer-subtitle { display: none; }
+        .md-nav-drawer.nav-collapsed .nav-item { justify-content: center; padding: 0; width: 48px; margin: 0 auto; }
+        .md-nav-drawer.nav-collapsed .nav-create-btn { width: 48px; height: 48px; border-radius: 50%; padding: 0; margin-bottom: 16px; }
+        .md-nav-drawer.nav-collapsed .drawer-header { padding: 8px 0 16px 0; align-items: center; }
+        .md-nav-drawer.nav-collapsed #navCollapseBtn .material-symbols-rounded { transform: rotate(180deg); }
+        .md-nav-drawer.nav-collapsed .nav-section-label { display: none; }
+
+        /* Dialog centering — fixes modal appearing at top-left */
+        dialog { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); margin: 0; }
+
+        /* Character counter */
+        .char-counter { font-size: 11px; color: var(--g-text-muted); text-align: right; margin-top: 4px; }
+        .char-counter.near-limit { color: var(--g-yellow); }
+        .char-counter.at-limit { color: var(--g-red); font-weight: 600; }
+
+        /* Typography hierarchy fixes */
+        .view-title { font-size: 18px !important; }
+        .dashboard-header h2 { font-size: 24px !important; }
+        .dashboard-header p  { font-size: 13px !important; }
+        .ops-toolbar h2 { font-size: 22px !important; }
+
     </style>
 </head>
 <body>
@@ -266,38 +292,61 @@
 
     <aside class="md-nav-drawer">
         <div class="drawer-header">
-            <h2 class="drawer-title">
-                <span class="material-symbols-rounded" style="font-size: 32px;">support_agent</span>
-                Ticketmaster
-            </h2>
-            <span style="font-size: 12px; color: var(--g-text-muted); font-weight: 500; padding-left: 42px;">Enterprise Edition</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                <h2 class="drawer-title">
+                    <img src="/images/logo.png" style="width:32px; height:32px; object-fit:contain; flex-shrink:0; border-radius:6px;">
+                    <span class="nav-label">Ticketmaster</span>
+                </h2>
+                <button id="navCollapseBtn" onclick="toggleNavCollapse()" title="Collapse sidebar"
+                        style="width:32px; height:32px; border:none; background:transparent; cursor:pointer;
+                       display:flex; align-items:center; justify-content:center;
+                       color:var(--g-text-muted); border-radius:50%; flex-shrink:0;">
+                    <span class="material-symbols-rounded" style="font-size:20px; transition:transform 0.25s;">chevron_left</span>
+                </button>
+            </div>
+            <span class="drawer-subtitle" style="font-size:12px; color:var(--g-text-muted); font-weight:500; padding-left:42px;">Enterprise Edition</span>
         </div>
 
         <div class="nav-item nav-create-btn" onclick="document.getElementById('createModal').showModal()">
-            <span class="material-symbols-rounded">add</span>
-            Raise New Incident
+    <span style="display:flex; width:28px; height:28px; border-radius:8px; background:#E8F0FE;
+                 align-items:center; justify-content:center; flex-shrink:0;">
+        <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-blue);">add</span>
+    </span>
+            <span class="nav-label">Raise New Incident</span>
         </div>
 
         <div class="nav-item active" onclick="switchView('viewDashboard', this)">
-            <span class="material-symbols-rounded">space_dashboard</span>
-            Dashboard Overview
-        </div>
-        <div class="nav-item" onclick="switchView('viewConsole', this)">
-            <span class="material-symbols-rounded">view_list</span>
-            Operations Console
-        </div>
-        <div class="nav-item" id="reportsNavItem" style="display:none;" onclick="switchView('viewReports', this)">
-            <span class="material-symbols-rounded">bar_chart</span>
-            Reports
+            <span style="display:flex; width:28px; height:28px; border-radius:8px; background:#E8F0FE;
+                         align-items:center; justify-content:center; flex-shrink:0;">
+                <span class="material-symbols-rounded" style="font-size:18px; color:#4285F4;">space_dashboard</span>
+            </span>
+            <span class="nav-label">Dashboard Overview</span>
         </div>
 
-        <div style="margin-top: auto; padding-top: 16px; border-top: 1px solid var(--g-border); display: none;" id="adminNavSection">
-            <div style="padding: 0 16px 8px 16px; font-size: 11px; font-weight: 600; color: var(--g-text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Administration</div>
-            <div class="nav-item" onclick="switchView('viewSettings', this)">
-                <span class="material-symbols-rounded">shield_person</span>
-                Access Management
-            </div>
+        <div class="nav-item" onclick="switchView('viewConsole', this)">
+            <span style="display:flex; width:28px; height:28px; border-radius:8px; background:#FEF7E0;
+                         align-items:center; justify-content:center; flex-shrink:0;">
+                <span class="material-symbols-rounded" style="font-size:18px; color:#F9AB00;">view_list</span>
+            </span>
+            <span class="nav-label">Operations Console</span>
         </div>
+
+        <div class="nav-item" id="reportsNavItem" style="display:none;" onclick="switchView('viewReports', this)">
+            <span style="display:flex; width:28px; height:28px; border-radius:8px; background:#E6F4EA;
+                         align-items:center; justify-content:center; flex-shrink:0;">
+                <span class="material-symbols-rounded" style="font-size:18px; color:#34A853;">bar_chart</span>
+            </span>
+            <span class="nav-label">Reports</span>
+        </div>
+
+        <div class="nav-item" id="accessMgmtNavItem" style="display:none;" onclick="switchView('viewSettings', this)">
+            <span style="display:flex; width:28px; height:28px; border-radius:8px; background:#FCE8E6;
+                 align-items:center; justify-content:center; flex-shrink:0;">
+                <span class="material-symbols-rounded" style="font-size:18px; color:#EA4335;">shield_person</span>
+            </span>
+            <span class="nav-label">Access Management</span>
+        </div>
+
     </aside>
 
     <main class="main-content">
@@ -312,7 +361,7 @@
                 </button>
                 <h1 class="view-title" id="currentViewTitle">Dashboard Overview</h1>
             </div>
-            <div style="display: flex; align-items: center; gap: 24px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
                 <span style="color: var(--g-text-muted); font-size: 14px;" id="liveClock"></span>
 
                 <!-- Notification Bell -->
@@ -411,33 +460,6 @@
                     </div>
                     <div class="chart-body">
                         <canvas id="mainChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Chart Row — sits below KPI strip, same visual weight as metric cards -->
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 24px;">
-                    <div class="metric-card" style="padding: 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <div>
-                                <p class="metric-label" style="margin-bottom: 2px;">Status Breakdown</p>
-                                <p style="font-size: 12px; color: var(--g-text-muted); margin: 0;">Current ticket pipeline</p>
-                            </div>
-                        </div>
-                        <div style="position: relative; height: 220px; display: flex; align-items: center; justify-content: center;">
-                            <canvas id="statusChart"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="metric-card" style="padding: 24px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <div>
-                                <p class="metric-label" style="margin-bottom: 2px;">Volume by Category</p>
-                                <p style="font-size: 12px; color: var(--g-text-muted); margin: 0;">Where workload is concentrated</p>
-                            </div>
-                        </div>
-                        <div style="position: relative; height: 220px;">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -568,31 +590,121 @@
             <div id="viewSettings" class="app-view">
                 <div class="dashboard-header">
                     <h2>Access Management</h2>
-                    <p>Provision and manage enterprise roles across the Ticketmaster network.</p>
+                    <p>Manage users, roles, and security across the Ticketmaster network.</p>
                 </div>
 
-                <div style="background: var(--g-surface); border: 1px solid var(--g-border); border-radius: 12px; padding: 32px; max-width: 600px;">
-                    <h3 style="margin: 0 0 24px 0; font-family: var(--font-display);">Register New User</h3>
-
-                    <div id="adminMsg" style="display:none; padding: 12px; border-radius: 4px; margin-bottom: 24px; font-size: 14px; font-weight: 500;"></div>
-
-                    <div class="g-input-group">
-                        <input type="text" id="regUser" placeholder=" ">
-                        <label for="regUser">Username</label>
+                <!-- Stats row -->
+                <div style="display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width:140px; background:var(--g-surface); border:1px solid var(--g-border);
+                    border-radius:12px; padding:20px 24px;">
+                        <div class="metric-label">Total Users</div>
+                        <div class="metric-value" id="statTotalUsers" style="font-size:28px; color:var(--g-blue);">—</div>
                     </div>
-                    <div class="g-input-group">
-                        <input type="password" id="regPass" placeholder=" ">
-                        <label for="regPass">Password</label>
+                    <div style="flex:1; min-width:140px; background:var(--g-surface); border:1px solid var(--g-border);
+                    border-radius:12px; padding:20px 24px;">
+                        <div class="metric-label">Administrators</div>
+                        <div class="metric-value" id="statAdmins" style="font-size:28px; color:#EA4335;">—</div>
                     </div>
-                    <div class="g-input-group" style="margin-bottom: 32px;">
-                        <select id="regRole" style="width: 100%; padding: 16px 14px; border: 1px solid var(--g-border); border-radius: 4px; font-family: var(--font-ui); background: transparent; outline: none;">
-                            <option value="DEVELOPER">Developer (Agent)</option>
-                            <option value="ADMIN">System Administrator</option>
-                        </select>
-                        <label style="top: 0; font-size: 12px; background: var(--g-surface);">Assign Role</label>
+                    <div style="flex:1; min-width:140px; background:var(--g-surface); border:1px solid var(--g-border);
+                    border-radius:12px; padding:20px 24px;">
+                        <div class="metric-label">Developers</div>
+                        <div class="metric-value" id="statDevs" style="font-size:28px; color:#34A853;">—</div>
                     </div>
+                    <div style="flex:1; min-width:140px; background:var(--g-surface); border:1px solid var(--g-border);
+                    border-radius:12px; padding:20px 24px; cursor:pointer;"
+                         onclick="switchSettingsTab('tabRequests')">
+                        <div class="metric-label">Password Requests</div>
+                        <div class="metric-value" id="statRequests" style="font-size:28px; color:#F9AB00;">—</div>
+                    </div>
+                </div>
 
-                    <button class="g-btn g-btn-primary" style="width: 100%;" onclick="adminRegisterUser()">Provision Account</button>
+                <!-- Tab bar -->
+                <div style="display:flex; gap:4px; border-bottom:1px solid var(--g-border); margin-bottom:24px;">
+                    <button id="settingsTab-tabUsers" onclick="switchSettingsTab('tabUsers')"
+                            style="padding:10px 20px; font-size:13px; font-weight:500; border:none; background:transparent;
+                       cursor:pointer; border-bottom:3px solid var(--g-blue); color:var(--g-blue);
+                       margin-bottom:-1px; font-family:var(--font-ui);">
+                        User Directory
+                    </button>
+                    <button id="settingsTab-tabRegister" onclick="switchSettingsTab('tabRegister')"
+                            style="padding:10px 20px; font-size:13px; font-weight:500; border:none; background:transparent;
+                       cursor:pointer; border-bottom:3px solid transparent; color:var(--g-text-muted);
+                       margin-bottom:-1px; font-family:var(--font-ui);">
+                        Register User
+                    </button>
+                    <button id="settingsTab-tabRequests" onclick="switchSettingsTab('tabRequests')"
+                            style="padding:10px 20px; font-size:13px; font-weight:500; border:none; background:transparent;
+                       cursor:pointer; border-bottom:3px solid transparent; color:var(--g-text-muted);
+                       margin-bottom:-1px; font-family:var(--font-ui);">
+                        Password Requests
+                    </button>
+                </div>
+
+                <!-- Tab: User Directory -->
+                <div id="settingsPanel-tabUsers">
+                    <div id="userDirectoryList">
+                        <p style="color:var(--g-text-muted); font-size:13px;">Loading users...</p>
+                    </div>
+                </div>
+
+                <!-- Tab: Register User -->
+                <div id="settingsPanel-tabRegister" style="display:none;">
+                    <div style="max-width:520px; background:var(--g-surface); border:1px solid var(--g-border);
+                    border-radius:16px; padding:32px;">
+                        <h3 style="margin:0 0 6px 0; font-family:var(--font-display); font-size:18px;">Register New User</h3>
+                        <p style="margin:0 0 24px 0; font-size:13px; color:var(--g-text-muted);">
+                            Create a new account and assign a role. The user will log in with these credentials.
+                        </p>
+
+                        <div id="adminMsg" style="display:none; padding:12px 16px; border-radius:8px;
+                                      margin-bottom:20px; font-size:13px; font-weight:500;"></div>
+
+                        <div class="g-input-group">
+                            <input type="text" id="regUser" placeholder=" ">
+                            <label for="regUser">Username</label>
+                        </div>
+                        <div class="g-input-group">
+                            <input type="password" id="regPass" placeholder=" ">
+                            <label for="regPass">Password</label>
+                        </div>
+                        <div style="margin-bottom:24px;">
+                            <p style="font-size:12px; color:var(--g-text-muted); margin:0 0 16px 0; font-weight:600; text-transform:uppercase; letter-spacing:0.5px;">Assign Role</p>
+                            <div style="display:flex; gap:12px;">
+                                <label style="flex:1; display:flex; align-items:center; gap:12px; padding:16px;
+                                  border:2px solid var(--g-border); border-radius:12px; cursor:pointer;
+                                  transition:border-color 0.15s;" id="roleLabelDev">
+                                    <input type="radio" name="regRole" id="regRoleDev" value="DEVELOPER"
+                                           onchange="updateRoleSelection()" checked
+                                           style="width:16px; height:16px; accent-color:var(--g-blue);">
+                                    <div>
+                                        <div style="font-weight:600; font-size:14px; color:var(--g-text-main);">Developer</div>
+                                        <div style="font-size:12px; color:var(--g-text-muted);">Agent — resolves tickets</div>
+                                    </div>
+                                </label>
+                                <label style="flex:1; display:flex; align-items:center; gap:12px; padding:16px;
+                                  border:2px solid var(--g-border); border-radius:12px; cursor:pointer;
+                                  transition:border-color 0.15s;" id="roleLabelAdmin">
+                                    <input type="radio" name="regRole" id="regRoleAdmin" value="ADMIN"
+                                           onchange="updateRoleSelection()"
+                                           style="width:16px; height:16px; accent-color:#EA4335;">
+                                    <div>
+                                        <div style="font-weight:600; font-size:14px; color:var(--g-text-main);">Admin</div>
+                                        <div style="font-size:12px; color:var(--g-text-muted);">Full system access</div>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <button class="g-btn g-btn-primary" style="width:100%; height:44px; font-size:14px;"
+                                onclick="adminRegisterUser()">Create Account</button>
+                    </div>
+                </div>
+
+                <!-- Tab: Password Requests -->
+                <div id="settingsPanel-tabRequests" style="display:none;">
+                    <div id="passwordRequestsList">
+                        <p style="color:var(--g-text-muted); font-size:13px;">Loading requests...</p>
+                    </div>
                 </div>
             </div>
 
@@ -648,11 +760,9 @@
 </div>
 
 <dialog id="createModal" class="md-dialog">
-    <div class="dialog-header">
+    <div style="margin-bottom: 24px;">
         <h3 style="margin: 0; font-family: var(--font-display); font-size: 24px;">Raise Incident</h3>
-        <button type="button" class="g-btn-text" style="padding: 0; width: 40px; height: 40px; border-radius: 50%; color: var(--g-text-muted); border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center;" onclick="document.getElementById('createModal').close()">
-            <span class="material-symbols-rounded">close</span>
-        </button>
+        <p style="margin: 6px 0 0 0; font-size: 14px; color: var(--g-text-muted);">Fill in the details below to log a new incident.</p>
     </div>
 
     <form id="ticketForm">
@@ -692,9 +802,11 @@
         </div>
 
         <div class="g-input-group">
-            <textarea id="description" placeholder=" " rows="4" required></textarea>
+            <textarea id="description" placeholder=" " rows="4" required
+              maxlength="1000" oninput="updateCharCounter()"></textarea>
             <label for="description">Detailed Description <span style="color: var(--g-red);">*</span></label>
         </div>
+        <div class="char-counter" id="descCharCounter">0 / 1000</div>
 
         <!-- D2: Suggest button sits right below the description textarea -->
         <div style="text-align: right; margin-top: 6px;">
