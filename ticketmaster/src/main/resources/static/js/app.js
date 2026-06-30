@@ -86,6 +86,7 @@ let currentTickets = [];
 let currentDetailTicketId = null;
 let consoleCurrentPage = 0;
 let allUsers = [];
+let agentWorkload = {};
 let selectedTicketIds = new Set();
 let consoleSearchQuery = '';
 let mainChartInstance = null;
@@ -130,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshDataPipeline();
     loadCategories();
     loadUsers();
+    loadAgentWorkload();
     refreshNotifications();
     if (localStorage.getItem('jwt_role') === 'ADMIN') {
         fetchWithAuth('/api/auth/password-requests', { headers: authHeaders() })
@@ -142,6 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Poll every 60 seconds — matches the SLA breach scheduler cadence so new breach
     // notifications appear in the bell within a minute of being written to the DB
     setInterval(refreshNotifications, 60000);
+    // Auto-refresh the operations console every 2 minutes so concurrent admins
+    // see each other's changes without manually reloading
+    setInterval(() => {
+        const consoleView = document.getElementById('viewConsole');
+        if (consoleView && consoleView.classList.contains('active-view')) {
+            loadConsolePage(consoleCurrentPage, consoleSearchQuery);
+        }
+    }, 120000);
 });
 
 function switchView(viewId, el) {
@@ -206,6 +216,15 @@ async function loadUsers() {
         allUsers = await res.json();
     } catch (e) {
         console.error('Failed to load users:', e);
+    }
+}
+
+async function loadAgentWorkload() {
+    try {
+        const res = await fetchWithAuth('/api/users/workload', { headers: authHeaders() });
+        if (res.ok) agentWorkload = await res.json();
+    } catch (e) {
+        console.error('Failed to load agent workload:', e);
     }
 }
 
@@ -361,7 +380,8 @@ function populateAssignedAgentDropdown(currentAgent) {
         allUsers.forEach(u => {
             const opt = document.createElement('option');
             opt.value = u.username;
-            opt.textContent = u.username + ' (' + u.role + ')';
+            const count = agentWorkload[u.username] || 0;
+            opt.textContent = `${u.username} (${u.role}) — ${count} open`;
             if (u.username === currentAgent) opt.selected = true;
             select.appendChild(opt);
         });
@@ -383,6 +403,8 @@ async function reassignAgent(agent) {
         });
         refreshDataPipeline();
         loadConsolePage(consoleCurrentPage, consoleSearchQuery);
+        showToast(agent ? `Assigned to ${agent}.` : 'Agent unassigned.', 'success');
+        loadAgentWorkload();
     } catch (e) {
         console.error('Reassignment failed:', e);
     }
@@ -418,6 +440,90 @@ function updateSlaPauseButton(ticket) {
         btn.style.color = 'var(--g-text-muted)';
         btn.style.borderColor = 'var(--g-border)';
     }
+}
+
+function renderStatusStepper(ticket) {
+    const stepper = document.getElementById('statusStepper');
+    if (!stepper) return;
+
+    // Define the standard lifecycle — PENDING and REOPENED are side states shown separately
+    const steps = [
+        { key: 'OPEN',        label: 'Open',        icon: 'radio_button_unchecked' },
+        { key: 'IN_PROGRESS', label: 'In Progress',  icon: 'pending' },
+        { key: 'RESOLVED',    label: 'Resolved',     icon: 'check_circle' },
+        { key: 'CLOSED',      label: 'Closed',       icon: 'lock' }
+    ];
+
+    const sideStates = { PENDING: 'Awaiting', REOPENED: 'Reopened', NEW: 'New' };
+    const currentStatus = ticket.status;
+
+    // Determine current step index
+    const stepIndex = steps.findIndex(s => s.key === currentStatus);
+    const isSideState = sideStates[currentStatus] !== undefined;
+
+    let html = '';
+    steps.forEach((step, i) => {
+        // Line before each step (except the first)
+        if (i > 0) {
+            const lineClass = i <= stepIndex ? 'done' : '';
+            html += `<div class="stepper-line ${lineClass}"></div>`;
+        }
+
+        let dotClass = '';
+        let labelClass = '';
+        let iconContent = '';
+
+        if (isSideState) {
+            // All steps before OPEN are muted, show side state badge
+            dotClass = i < stepIndex ? 'done' : '';
+            labelClass = i < stepIndex ? 'done' : '';
+            iconContent = i < stepIndex
+                ? '<span class="material-symbols-rounded" style="font-size:14px;">check</span>'
+                : `<span class="material-symbols-rounded" style="font-size:14px; color:var(--g-text-muted);">${step.icon}</span>`;
+        } else if (ticket.slaBreached && currentStatus !== 'RESOLVED' && currentStatus !== 'CLOSED') {
+            // SLA breached and unresolved — show breached color on current step
+            if (i < stepIndex) {
+                dotClass = 'done'; labelClass = 'done';
+                iconContent = '<span class="material-symbols-rounded" style="font-size:14px;">check</span>';
+            } else if (i === stepIndex) {
+                dotClass = 'breached'; labelClass = 'breached';
+                iconContent = '<span class="material-symbols-rounded" style="font-size:14px;">warning</span>';
+            } else {
+                iconContent = `<span class="material-symbols-rounded" style="font-size:14px; color:var(--g-text-muted);">${step.icon}</span>`;
+            }
+        } else {
+            if (i < stepIndex) {
+                dotClass = 'done'; labelClass = 'done';
+                iconContent = '<span class="material-symbols-rounded" style="font-size:14px;">check</span>';
+            } else if (i === stepIndex) {
+                dotClass = 'active'; labelClass = 'active';
+                iconContent = `<span class="material-symbols-rounded" style="font-size:14px;">${step.icon}</span>`;
+            } else {
+                iconContent = `<span class="material-symbols-rounded" style="font-size:14px; color:var(--g-text-muted);">${step.icon}</span>`;
+            }
+        }
+
+        html += `
+            <div class="stepper-step">
+                <div class="stepper-dot ${dotClass}">${iconContent}</div>
+                <span class="stepper-label ${labelClass}">${step.label}</span>
+            </div>`;
+    });
+
+    // Show side state badge if applicable
+    if (isSideState) {
+        const badgeColor = currentStatus === 'PENDING' ? 'var(--g-yellow)'
+            : currentStatus === 'REOPENED' ? 'var(--g-red)' : 'var(--g-text-muted)';
+        html += `
+            <div style="margin-left:12px; white-space:nowrap;">
+                <span style="font-size:11px; font-weight:600; padding:3px 10px; border-radius:100px;
+                             background:${badgeColor}20; color:${badgeColor}; border:1px solid ${badgeColor};">
+                    ${sideStates[currentStatus].toUpperCase()}
+                </span>
+            </div>`;
+    }
+
+    stepper.innerHTML = html;
 }
 
 async function toggleSlaPause() {
@@ -699,6 +805,7 @@ async function openTicketDetail(id) {
         document.getElementById('detailCategoryChip').innerText = ticket.category ? ticket.category.name : 'Uncategorized';
         document.getElementById('detailDescription').innerText = ticket.description;
 
+        renderStatusStepper(ticket);
         renderComments(ticket.comments || []);
         loadAttachments(ticket.id);
         loadLinkedTickets(ticket.id);
@@ -767,6 +874,7 @@ async function submitComment() {
 
     document.getElementById('newCommentContent').value = '';
     document.getElementById('newCommentInternal').checked = false;
+    showToast('Comment posted.', 'success');
     openTicketDetail(currentDetailTicketId); // refresh the thread with the new comment
 }
 
@@ -1167,7 +1275,8 @@ function updateBulkToolbar() {
             allUsers.forEach(u => {
                 const opt = document.createElement('option');
                 opt.value = u.username;
-                opt.textContent = u.username + ' (' + u.role + ')';
+                const count = agentWorkload[u.username] || 0;
+                opt.textContent = `${u.username} (${u.role}) — ${count} open`;
                 agentSelect.appendChild(opt);
             });
         } else {
@@ -1356,6 +1465,7 @@ async function deleteUserFromDirectory(id, username) {
     try {
         await fetchWithAuth(`/api/auth/users/${id}`, { method: 'DELETE', headers: authHeaders() });
         loadUserDirectory();
+        showToast(`User "${username}" removed.`, 'success');
     } catch(e) {
         console.error('Failed to delete user:', e);
     }
@@ -1488,6 +1598,7 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
     document.getElementById('ticketForm').reset();
     updateCharCounter();
     document.getElementById('createModal').close();
+    showToast('Ticket raised successfully.', 'success');
 
     // Switch to Ops view to see the new ticket
     switchView('viewConsole', document.querySelectorAll('.nav-item')[2]);
@@ -1539,6 +1650,7 @@ async function submitResolve() {
     document.getElementById('resolveModal').close();
     document.getElementById('resolveNotes').value = '';
     ticketIdPendingResolve = null;
+    showToast('Ticket marked as resolved.', 'success');
     refreshDataPipeline();
     loadConsolePage(consoleCurrentPage, consoleSearchQuery);
 }

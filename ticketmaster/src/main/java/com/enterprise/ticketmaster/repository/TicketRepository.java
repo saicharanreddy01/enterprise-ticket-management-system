@@ -98,6 +98,12 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
         """, nativeQuery = true)
     List<Object[]> findAgentAssignmentStats();
 
+    @Query(value = "SELECT t.assigned_agent, COUNT(*) FROM tickets t " +
+            "WHERE t.assigned_agent IS NOT NULL " +
+            "AND t.status NOT IN ('RESOLVED', 'CLOSED') " +
+            "GROUP BY t.assigned_agent", nativeQuery = true)
+    List<Object[]> findOpenTicketCountsByAgent();
+
     @Query(value = """
         SELECT t.resolved_by,
                AVG(TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at)) AS avgResolutionMinutes
