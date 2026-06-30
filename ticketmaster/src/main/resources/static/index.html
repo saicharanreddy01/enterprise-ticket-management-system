@@ -28,8 +28,8 @@
 
         /* 5. Highlight Website Name */
         .drawer-title {
-            font-family: var(--font-display); font-size: 26px; font-weight: 700; color: var(--g-blue); letter-spacing: -0.5px; margin: 0;
-            display: flex; align-items: center; gap: 10px;
+            font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--g-text-main); letter-spacing: -0.2px; margin: 0;
+            display: flex; align-items: center; gap: 8px;
         }
 
         .nav-item {
@@ -266,7 +266,10 @@
         .md-nav-drawer.nav-collapsed .drawer-subtitle { display: none; }
         .md-nav-drawer.nav-collapsed .nav-item { justify-content: center; padding: 0; width: 48px; margin: 0 auto; }
         .md-nav-drawer.nav-collapsed .nav-create-btn { width: 48px; height: 48px; border-radius: 50%; padding: 0; margin-bottom: 16px; }
-        .md-nav-drawer.nav-collapsed .drawer-header { padding: 8px 0 16px 0; align-items: center; }
+        .md-nav-drawer.nav-collapsed .drawer-header { padding: 8px 0 16px 0; }
+        .md-nav-drawer.nav-collapsed .drawer-header > div { justify-content: center; }
+        .md-nav-drawer.nav-collapsed .drawer-title { justify-content: center; }
+        .md-nav-drawer.nav-collapsed #navCollapseBtn { display: none; }
         .md-nav-drawer.nav-collapsed #navCollapseBtn .material-symbols-rounded { transform: rotate(180deg); }
         .md-nav-drawer.nav-collapsed .nav-section-label { display: none; }
 
@@ -284,6 +287,28 @@
         .dashboard-header p  { font-size: 13px !important; }
         .ops-toolbar h2 { font-size: 22px !important; }
 
+        /* Toast notifications */
+        #toastContainer {
+            position: fixed; bottom: 24px; right: 24px;
+            display: flex; flex-direction: column; gap: 8px;
+            z-index: 99999; pointer-events: none;
+        }
+        .toast {
+            display: flex; align-items: center; gap: 12px;
+            padding: 14px 18px; border-radius: 12px; min-width: 280px; max-width: 400px;
+            background: #202124; color: #fff; font-size: 13px; font-weight: 500;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            animation: toastIn 0.3s ease; pointer-events: auto;
+            font-family: var(--font-ui);
+        }
+        .toast.toast-success { background: #1E8E3E; }
+        .toast.toast-error   { background: #D93025; }
+        .toast.toast-warning { background: #B06000; }
+        @keyframes toastIn {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
     </style>
 </head>
 <body>
@@ -294,17 +319,20 @@
         <div class="drawer-header">
             <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                 <h2 class="drawer-title">
-                    <img src="/images/logo.png" style="width:32px; height:32px; object-fit:contain; flex-shrink:0; border-radius:6px;">
-                    <span class="nav-label">Ticketmaster</span>
+                    <img src="/images/logo.png" onclick="if(document.querySelector('.md-nav-drawer').classList.contains('nav-collapsed')) toggleNavCollapse()"
+                         style="width:28px; height:28px; object-fit:contain; flex-shrink:0; border-radius:6px; cursor:pointer;">
+                    <div class="nav-label">
+                        <div style="font-size:16px; font-weight:600; color:var(--g-text-main); line-height:1.2;">Ticketmaster</div>
+                        <div class="drawer-subtitle" style="font-size:11px; color:var(--g-text-muted); font-weight:400; letter-spacing:0.2px;">Enterprise Edition</div>
+                    </div>
                 </h2>
                 <button id="navCollapseBtn" onclick="toggleNavCollapse()" title="Collapse sidebar"
-                        style="width:32px; height:32px; border:none; background:transparent; cursor:pointer;
+                        style="width:28px; height:28px; border:none; background:transparent; cursor:pointer;
                        display:flex; align-items:center; justify-content:center;
-                       color:var(--g-text-muted); border-radius:50%; flex-shrink:0;">
-                    <span class="material-symbols-rounded" style="font-size:20px; transition:transform 0.25s;">chevron_left</span>
+                       color:var(--g-text-muted); border-radius:50%; flex-shrink:0; padding:0;">
+                    <span class="material-symbols-rounded" style="font-size:18px; transition:transform 0.25s;">chevron_left</span>
                 </button>
             </div>
-            <span class="drawer-subtitle" style="font-size:12px; color:var(--g-text-muted); font-weight:500; padding-left:42px;">Enterprise Edition</span>
         </div>
 
         <div class="nav-item nav-create-btn" onclick="document.getElementById('createModal').showModal()">
@@ -734,25 +762,25 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-            <!-- Volume Trend Chart -->
-            <div class="chart-panel" style="margin-top: 24px;">
-                <div style="display:flex; justify-content:space-between; align-items:center;
-                            padding: 16px 24px; border-bottom: 1px solid var(--g-border);">
-                    <span style="font-weight:600; font-size:15px; font-family:var(--font-display);">
-                        Ticket Volume Trend
-                    </span>
-                    <div style="display:flex; gap:8px;">
-                        <button class="g-btn g-btn-text" onclick="loadVolumeTrend(7)"
-                                style="padding:0 12px; height:28px; font-size:12px;" id="vol7">7d</button>
-                        <button class="g-btn g-btn-text" onclick="loadVolumeTrend(30)"
-                                style="padding:0 12px; height:28px; font-size:12px;" id="vol30">30d</button>
-                        <button class="g-btn g-btn-text" onclick="loadVolumeTrend(90)"
-                                style="padding:0 12px; height:28px; font-size:12px;" id="vol90">90d</button>
+                <!-- Volume Trend Chart -->
+                <div class="chart-panel" style="margin-top: 24px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;
+                                padding: 16px 24px; border-bottom: 1px solid var(--g-border);">
+                        <span style="font-weight:600; font-size:15px; font-family:var(--font-display);">
+                            Ticket Volume Trend
+                        </span>
+                        <div style="display:flex; gap:8px;">
+                            <button class="g-btn g-btn-text" onclick="loadVolumeTrend(7)"
+                                    style="padding:0 12px; height:28px; font-size:12px;" id="vol7">7d</button>
+                            <button class="g-btn g-btn-text" onclick="loadVolumeTrend(30)"
+                                    style="padding:0 12px; height:28px; font-size:12px;" id="vol30">30d</button>
+                            <button class="g-btn g-btn-text" onclick="loadVolumeTrend(90)"
+                                    style="padding:0 12px; height:28px; font-size:12px;" id="vol90">90d</button>
+                        </div>
                     </div>
-                </div>
-                <div class="chart-body">
-                    <canvas id="volumeChart"></canvas>
+                    <div class="chart-body">
+                        <canvas id="volumeChart"></canvas>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1000,6 +1028,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="/js/app.js"></script>
+<div id="toastContainer"></div>
 <div id="mobileOverlay" onclick="toggleMobileNav()"></div>
 </body>
 </html>

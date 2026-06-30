@@ -479,6 +479,25 @@ function renderTable(tickets) {
     if (!tbody) return;
     tbody.innerHTML = '';
 
+    if (tickets.length === 0) {
+        tbody.innerHTML = `
+        <tr>
+            <td colspan="8" style="padding: 64px 24px; text-align:center;">
+                <span class="material-symbols-rounded"
+                      style="font-size:48px; color:var(--g-text-muted); display:block; margin-bottom:12px;">
+                    inbox
+                </span>
+                <p style="font-size:15px; font-weight:500; color:var(--g-text-main); margin:0 0 6px 0;">
+                    No tickets found
+                </p>
+                <p style="font-size:13px; color:var(--g-text-muted); margin:0;">
+                    Try adjusting your search or filters
+                </p>
+            </td>
+        </tr>`;
+        return;
+    }
+
     tickets.forEach(t => {
         let statusClass = 'ticket-chip';
         if (['NEW', 'OPEN'].includes(t.status)) statusClass += ' chip-new';
@@ -920,7 +939,7 @@ async function uploadAttachment(input) {
             loadAttachments(currentDetailTicketId);
         } else {
             const err = await res.json();
-            alert(err.error || 'Upload failed.');
+            showToast(err.error || 'Upload failed.', 'error');
         }
     } catch (e) {
         console.error('Upload error:', e);
@@ -1172,7 +1191,7 @@ async function applyBulkAction() {
     const agent       = document.getElementById('bulkAgentSelect').value;
 
     if (!status && !agent) {
-        alert('Select a status or agent to apply.');
+        showToast('Select a status or agent to apply.', 'warning');
         return;
     }
 
@@ -1193,7 +1212,7 @@ async function applyBulkAction() {
         document.getElementById('bulkAgentSelect').value  = '';
         refreshDataPipeline();
         loadConsolePage(consoleCurrentPage, consoleSearchQuery);
-        alert(`${result.updated} ticket(s) updated successfully.`);
+        showToast(`${result.updated} ticket(s) updated successfully.`, 'success');
     } catch (e) {
         console.error('Bulk update failed:', e);
     }
@@ -1431,7 +1450,7 @@ async function resetUserPassword(requestId) {
     const input = document.getElementById('newPass-' + requestId);
     const newPassword = input?.value?.trim();
     if (!newPassword || newPassword.length < 8) {
-        alert('Password must be at least 8 characters.');
+        showToast('Password must be at least 8 characters.', 'warning');
         return;
     }
     try {
@@ -1440,7 +1459,7 @@ async function resetUserPassword(requestId) {
             body: JSON.stringify({ newPassword })
         });
         if (res.ok) loadPasswordRequests();
-        else alert('Failed to reset password.');
+        else showToast('Failed to reset password.', 'error');
     } catch(e) { console.error(e); }
 }
 
@@ -1529,7 +1548,7 @@ async function suggestClassification() {
     const description = document.getElementById('description')?.value?.trim();
 
     if (!title) {
-        alert('Please enter a title first so the classifier has something to work with.');
+        showToast('Please enter a title first.', 'warning');
         return;
     }
 
@@ -1610,9 +1629,8 @@ async function loadTicketHistory(ticketId) {
     historyList.innerHTML = '<p style="color: var(--g-text-muted); font-size: 13px;">Loading...</p>';
 
     try {
-        const token = localStorage.getItem('jwt_token');
-        const res = await fetch(`/api/tickets/${ticketId}/history`, {
-            headers: { 'Authorization': 'Bearer ' + token }
+        const res = await fetchWithAuth(`/api/tickets/${ticketId}/history`, {
+            headers: authHeaders()
         });
         const entries = await res.json();
 
@@ -1821,4 +1839,29 @@ function toggleShortcutHelp() {
 
 function closeShortcutHelp() {
     document.getElementById('shortcutHelpOverlay')?.remove();
+}
+
+// ===== Toast Notifications =====
+function showToast(message, type = 'default', duration = 3500) {
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+
+    const icons = {
+        success: 'check_circle',
+        error:   'error',
+        warning: 'warning',
+        default: 'info'
+    };
+
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+        <span class="material-symbols-rounded" style="font-size:18px; flex-shrink:0;">${icons[type] || 'info'}</span>
+        <span style="flex:1;">${escapeHtml(message)}</span>
+        <button onclick="this.parentElement.remove()"
+                style="border:none; background:transparent; color:rgba(255,255,255,0.7);
+                       cursor:pointer; padding:0; font-size:16px; flex-shrink:0;">✕</button>
+    `;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), duration);
 }
