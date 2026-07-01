@@ -47,6 +47,8 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
             "AND (:status IS NULL OR t.status = :status) " +
             "AND (:priority IS NULL OR t.priority = :priority) " +
             "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
+            "AND (:raisedBy IS NULL OR t.raisedBy = :raisedBy) " +
+            "AND (:assignedAgent IS NULL OR t.assignedAgent = :assignedAgent) " +
             "ORDER BY t.id DESC",
             countQuery = "SELECT COUNT(t) FROM Ticket t " +
                     "WHERE ((:q = '' OR LOWER(t.title) LIKE LOWER(CONCAT('%', :q, '%')) " +
@@ -54,13 +56,17 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
                     "OR (:numericQ IS NOT NULL AND t.id = :numericQ)) " +
                     "AND (:status IS NULL OR t.status = :status) " +
                     "AND (:priority IS NULL OR t.priority = :priority) " +
-                    "AND (:categoryId IS NULL OR t.category.id = :categoryId)")
+                    "AND (:categoryId IS NULL OR t.category.id = :categoryId) " +
+                    "AND (:raisedBy IS NULL OR t.raisedBy = :raisedBy) " +
+                    "AND (:assignedAgent IS NULL OR t.assignedAgent = :assignedAgent)")
     Page<Ticket> searchWithFilters(
             @Param("q") String q,
             @Param("numericQ") Long numericQ,
             @Param("status") Status status,
             @Param("priority") Priority priority,
             @Param("categoryId") Long categoryId,
+            @Param("raisedBy") String raisedBy,
+            @Param("assignedAgent") String assignedAgent,
             Pageable pageable);
 
     @Query("SELECT DISTINCT t FROM Ticket t " +

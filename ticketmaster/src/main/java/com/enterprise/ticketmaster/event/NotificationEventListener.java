@@ -60,6 +60,9 @@ public class NotificationEventListener {
                     emailService.sendSlaBreached(notifyEmail, ticketId, title);
                 }
             }
+            case TICKET_ASSIGNED -> {
+                notification.setMessage("Ticket #" + ticketId + " has been assigned to you: " + title);
+            }
             case TICKET_REOPENED ->
                     notification.setMessage("Ticket #" + ticketId + " reopened: " + title);
             case TICKET_AUTO_CLOSED ->

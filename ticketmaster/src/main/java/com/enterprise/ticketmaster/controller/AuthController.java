@@ -214,8 +214,8 @@ public class AuthController {
         if (userRepository.findByUsername(user.getUsername()).isPresent()) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Username already taken.");
         }
-        if (!user.getRole().equals("DEVELOPER") && !user.getRole().equals("ADMIN")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid role. Must be DEVELOPER or ADMIN.");
+        if (!user.getRole().equals("DEVELOPER") && !user.getRole().equals("ADMIN") && !user.getRole().equals("USER")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid role. Must be DEVELOPER, ADMIN, or USER.");
         }
 
         // --- Password policy enforcement ---

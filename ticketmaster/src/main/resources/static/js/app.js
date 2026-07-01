@@ -51,6 +51,13 @@ function toggleDarkMode() {
 function toggleNavCollapse() {
     const nav = document.querySelector('.md-nav-drawer');
     nav.classList.toggle('nav-collapsed');
+    // Close sub-menu when collapsing
+    if (nav.classList.contains('nav-collapsed')) {
+        const subMenu = document.getElementById('consoleSubMenu');
+        const chevron = document.getElementById('consoleSubChevron');
+        if (subMenu) subMenu.style.display = 'none';
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+    }
     localStorage.setItem('navCollapsed', nav.classList.contains('nav-collapsed'));
 }
 
@@ -89,6 +96,9 @@ let allUsers = [];
 let agentWorkload = {};
 let selectedTicketIds = new Set();
 let consoleSearchQuery = '';
+let quickFilterAssignedToMe = false;
+let quickFilterRaisedByMe   = false;
+let consoleLockedRaisedBy   = null;
 let mainChartInstance = null;
 let volumeChartInstance = null;
 let activeVolumeDays = 30;
@@ -108,6 +118,34 @@ document.addEventListener('DOMContentLoaded', () => {
         const accessMgmtNav = document.getElementById('accessMgmtNavItem');
         if (reportsNav)    reportsNav.style.display    = 'flex';
         if (accessMgmtNav) accessMgmtNav.style.display = 'flex';
+    }
+    if (role === 'DEVELOPER') {
+        const widget = document.getElementById('devPersonalWidget');
+        if (widget) widget.style.display = 'block';
+    }
+    if (role === 'USER') {
+        // Show only My Requests in nav
+        const myReqNav = document.getElementById('myRequestsNavItem');
+        if (myReqNav) myReqNav.style.display = 'flex';
+
+        // Hide all nav items except Raise New Incident and My Requests
+        const hideLabels = ['Dashboard Overview', 'Operations Console', 'Reports', 'Access Management'];
+        document.querySelectorAll('.nav-item').forEach(item => {
+            const label = item.querySelector('.nav-label');
+            if (label && hideLabels.includes(label.innerText.trim())) {
+                item.style.display = 'none';
+            }
+        });
+
+        // Also hide the console sub-menu group entirely for USER
+        const consoleGroup = document.getElementById('consoleNavGroup');
+        if (consoleGroup) consoleGroup.style.display = 'none';
+
+        // Boot into My Requests (console locked to current user's tickets)
+        setMyRequestsMode();
+        setTimeout(() => {
+            switchView('viewConsole', document.getElementById('myRequestsNavItem'));
+        }, 50); // Small delay ensures DOM is ready
     }
 
     // Live Clock
@@ -172,7 +210,28 @@ function switchView(viewId, el) {
         overlay.classList.remove('visible');
     }
     if (viewId === 'viewConsole') {
+        // Open sub-menu when entering console (not for USER role, not when collapsed)
+        const role = localStorage.getItem('jwt_role');
+        const isCollapsed = document.querySelector('.md-nav-drawer')?.classList.contains('nav-collapsed');
+        const subMenu = document.getElementById('consoleSubMenu');
+        const chevron = document.getElementById('consoleSubChevron');
+        if (subMenu && role !== 'USER' && !isCollapsed) {
+            subMenu.style.display = 'block';
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        }
         loadConsolePage(0, '');
+    } else {
+        // Close sub-menu and reset quick filters when leaving console
+        const subMenu = document.getElementById('consoleSubMenu');
+        const chevron = document.getElementById('consoleSubChevron');
+        if (subMenu) subMenu.style.display = 'none';
+        if (chevron) chevron.style.transform = 'rotate(0deg)';
+        if (!consoleLockedRaisedBy) {
+            quickFilterAssignedToMe = false;
+            quickFilterRaisedByMe   = false;
+            document.getElementById('subFilterAssigned')?.classList.remove('active');
+            document.getElementById('subFilterRaised')?.classList.remove('active');
+        }
     }
     if (viewId === 'viewReports') {
         loadAgentPerformance();
@@ -566,6 +625,7 @@ async function refreshDataPipeline() {
             document.getElementById('metricOpen').innerText = tickets.filter(t => ['NEW', 'OPEN', 'IN_PROGRESS'].includes(t.status)).length;
             document.getElementById('metricResolved').innerText = tickets.filter(t => ['RESOLVED', 'CLOSED'].includes(t.status)).length;
 
+            renderDevPersonalWidget(tickets);
             renderDashboardCharts(tickets);
         }
     } catch (e) { console.error("Pipeline Sync Error:", e); }
@@ -670,6 +730,31 @@ function renderSlaMetric(tickets) {
     document.getElementById('slaProgressBar').style.width = `${pct}%`;
     document.getElementById('slaProgressBar').style.background = barColor;
     document.getElementById('metricSla').style.color = barColor;
+}
+
+function renderDevPersonalWidget(tickets) {
+    const widget = document.getElementById('devPersonalWidget');
+    if (!widget || widget.style.display === 'none') return;
+
+    const currentUser = localStorage.getItem('jwt_username');
+    if (!currentUser) return;
+
+    const myTickets    = tickets.filter(t => t.assignedAgent === currentUser);
+    const myOpen       = myTickets.filter(t => !['RESOLVED', 'CLOSED'].includes(t.status));
+    const myWithSla    = myTickets.filter(t => t.slaDueDate);
+    const myCompliant  = myWithSla.filter(t => !t.slaBreached);
+    const slaRate      = myWithSla.length > 0
+        ? Math.round((myCompliant.length / myWithSla.length) * 100) + '%' : 'N/A';
+
+    const today        = new Date().toDateString();
+    const resolvedToday = myTickets.filter(t =>
+        t.status === 'RESOLVED' && t.resolvedAt &&
+        new Date(t.resolvedAt).toDateString() === today
+    ).length;
+
+    document.getElementById('devOpenCount').innerText    = myOpen.length;
+    document.getElementById('devSlaRate').innerText      = slaRate;
+    document.getElementById('devResolvedToday').innerText = resolvedToday;
 }
 
 function switchChartTab(tab, el, tickets) {
@@ -1160,11 +1245,21 @@ async function loadConsolePage(page, q, status, priority, categoryId) {
     consoleCurrentPage = page;
     consoleSearchQuery = q || '';
 
+    const currentUser = localStorage.getItem('jwt_username');
     const params = new URLSearchParams({ page, size: 20 });
     if (consoleSearchQuery) params.set('q', consoleSearchQuery);
     if (status)     params.set('status', status);
     if (priority)   params.set('priority', priority);
     if (categoryId) params.set('categoryId', categoryId);
+
+    // Quick filters and role-locked filters
+    if (consoleLockedRaisedBy) {
+        params.set('raisedBy', consoleLockedRaisedBy);
+    } else if (quickFilterAssignedToMe && currentUser) {
+        params.set('assignedAgent', currentUser);
+    } else if (quickFilterRaisedByMe && currentUser) {
+        params.set('raisedBy', currentUser);
+    }
 
     try {
         const response = await fetchWithAuth(`/api/tickets/search?${params}`, {
@@ -1216,6 +1311,12 @@ function applyFilters() {
     }
     if (clearBtn) clearBtn.style.display = activeCount > 0 ? 'inline-block' : 'none';
 
+    quickFilterAssignedToMe = false;
+    quickFilterRaisedByMe   = false;
+    const assignedBtn = document.getElementById('filterAssignedToMe');
+    const raisedBtn   = document.getElementById('filterRaisedByMe');
+    if (assignedBtn) { assignedBtn.style.background = 'transparent'; assignedBtn.style.color = 'var(--g-text-muted)'; assignedBtn.style.borderColor = 'var(--g-border)'; }
+    if (raisedBtn)   { raisedBtn.style.background   = 'transparent'; raisedBtn.style.color   = 'var(--g-text-muted)'; raisedBtn.style.borderColor   = 'var(--g-border)'; }
     loadConsolePage(0, q, status, priority, categoryId ? Number(categoryId) : null);
 }
 
@@ -1225,7 +1326,68 @@ function clearFilters() {
     document.getElementById('filterCategory').value = '';
     document.getElementById('activeFilterCount').style.display = 'none';
     document.getElementById('clearFiltersBtn').style.display   = 'none';
+    quickFilterAssignedToMe = false;
+    quickFilterRaisedByMe   = false;
+    document.getElementById('subFilterAssigned')?.classList.remove('active');
+    document.getElementById('subFilterRaised')?.classList.remove('active');
     loadConsolePage(0, consoleSearchQuery);
+}
+
+function setMyRequestsMode() {
+    const currentUser = localStorage.getItem('jwt_username');
+    consoleLockedRaisedBy = currentUser;
+    quickFilterAssignedToMe = false;
+    quickFilterRaisedByMe   = false;
+    loadConsolePage(0, '');
+}
+
+function toggleQuickFilter(filterName) {
+    if (consoleLockedRaisedBy) return; // USER role — locked, ignore
+
+    if (filterName === 'assignedToMe') {
+        quickFilterAssignedToMe = !quickFilterAssignedToMe;
+        quickFilterRaisedByMe   = false; // mutually exclusive
+    } else if (filterName === 'raisedByMe') {
+        quickFilterRaisedByMe   = !quickFilterRaisedByMe;
+        quickFilterAssignedToMe = false;
+    }
+
+    // Update pill button styles
+    const assignedBtn = document.getElementById('filterAssignedToMe');
+    const raisedBtn   = document.getElementById('filterRaisedByMe');
+    if (assignedBtn) {
+        assignedBtn.style.background    = quickFilterAssignedToMe ? 'var(--g-blue)' : 'transparent';
+        assignedBtn.style.color         = quickFilterAssignedToMe ? '#fff' : 'var(--g-text-muted)';
+        assignedBtn.style.borderColor   = quickFilterAssignedToMe ? 'var(--g-blue)' : 'var(--g-border)';
+    }
+    if (raisedBtn) {
+        raisedBtn.style.background  = quickFilterRaisedByMe ? 'var(--g-blue)' : 'transparent';
+        raisedBtn.style.color       = quickFilterRaisedByMe ? '#fff' : 'var(--g-text-muted)';
+        raisedBtn.style.borderColor = quickFilterRaisedByMe ? 'var(--g-blue)' : 'var(--g-border)';
+    }
+
+    loadConsolePage(0, consoleSearchQuery);
+}
+
+function applyNavQuickFilter(filterType) {
+    if (consoleLockedRaisedBy) return; // USER role — locked
+
+    quickFilterAssignedToMe = filterType === 'assignedToMe';
+    quickFilterRaisedByMe   = filterType === 'raisedByMe';
+
+    // Update sub-item highlight
+    const assignedItem = document.getElementById('subFilterAssigned');
+    const raisedItem   = document.getElementById('subFilterRaised');
+    if (assignedItem) assignedItem.classList.toggle('active', quickFilterAssignedToMe);
+    if (raisedItem)   raisedItem.classList.toggle('active',   quickFilterRaisedByMe);
+
+    // Make sure we're on the console view
+    const consoleParent = document.getElementById('consoleNavParent');
+    if (!document.getElementById('viewConsole')?.classList.contains('active-view')) {
+        switchView('viewConsole', consoleParent);
+    } else {
+        loadConsolePage(0, consoleSearchQuery);
+    }
 }
 
 function handleTicketCheckbox(checkbox) {
@@ -1378,11 +1540,13 @@ function switchSettingsTab(tabId) {
 }
 
 function updateRoleSelection() {
-    const devSelected   = document.getElementById('regRoleDev')?.checked;
-    const labelDev      = document.getElementById('roleLabelDev');
-    const labelAdmin    = document.getElementById('roleLabelAdmin');
-    if (labelDev)   labelDev.style.borderColor   = devSelected ? 'var(--g-blue)' : 'var(--g-border)';
-    if (labelAdmin) labelAdmin.style.borderColor = !devSelected ? '#EA4335' : 'var(--g-border)';
+    const selected   = document.querySelector('input[name="regRole"]:checked')?.value;
+    const labelDev   = document.getElementById('roleLabelDev');
+    const labelAdmin = document.getElementById('roleLabelAdmin');
+    const labelUser  = document.getElementById('roleLabelUser');
+    if (labelDev)   labelDev.style.borderColor   = selected === 'DEVELOPER' ? 'var(--g-blue)'   : 'var(--g-border)';
+    if (labelAdmin) labelAdmin.style.borderColor = selected === 'ADMIN'     ? '#EA4335'          : 'var(--g-border)';
+    if (labelUser)  labelUser.style.borderColor  = selected === 'USER'      ? '#34A853'          : 'var(--g-border)';
 }
 
 async function loadUserDirectory() {

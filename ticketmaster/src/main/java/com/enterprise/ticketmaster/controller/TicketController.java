@@ -44,9 +44,12 @@ public class TicketController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String priority,
             @RequestParam(required = false) Long categoryId,
+            @RequestParam(required = false) String raisedBy,
+            @RequestParam(required = false) String assignedAgent,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(ticketService.searchTickets(q, status, priority, categoryId, page, size));
+        return ResponseEntity.ok(ticketService.searchTickets(
+                q, status, priority, categoryId, raisedBy, assignedAgent, page, size));
     }
 
     @PostMapping

@@ -67,22 +67,26 @@ public class TicketService {
     }
 
     public Page<Ticket> searchTickets(String q, String statusStr, String priorityStr,
-                                      Long categoryId, int page, int size) {
+                                      Long categoryId, String raisedBy, String assignedAgent,
+                                      int page, int size) {
         if (q == null) q = "";
         Status status     = (statusStr   != null && !statusStr.isBlank())   ? Status.valueOf(statusStr)     : null;
         Priority priority = (priorityStr != null && !priorityStr.isBlank()) ? Priority.valueOf(priorityStr) : null;
 
-        // Parse numeric ID from query string
         Long numericQ = null;
         try {
             if (!q.isBlank()) numericQ = Long.parseLong(q.trim().replace("#", ""));
         } catch (NumberFormatException ignored) {}
 
-        if (q.isBlank() && status == null && priority == null && categoryId == null) {
+        String raisedByParam      = (raisedBy      != null && !raisedBy.isBlank())      ? raisedBy      : null;
+        String assignedAgentParam = (assignedAgent  != null && !assignedAgent.isBlank()) ? assignedAgent : null;
+
+        if (q.isBlank() && status == null && priority == null && categoryId == null
+                && raisedByParam == null && assignedAgentParam == null) {
             return getTicketsPaginated(page, size);
         }
         return ticketRepository.searchWithFilters(q, numericQ, status, priority,
-                categoryId, PageRequest.of(page, size));
+                categoryId, raisedByParam, assignedAgentParam, PageRequest.of(page, size));
     }
 
     public Ticket getTicketById(Long id) {
@@ -216,6 +220,7 @@ public class TicketService {
             h.setOldValue(previousAgent != null ? previousAgent : "Unassigned");
             h.setNewValue(agent);
             ticketHistoryRepository.save(h);
+            eventPublisher.publishEvent(new TicketEvent(saved, NotificationType.TICKET_ASSIGNED));
         }
 
         return saved;
