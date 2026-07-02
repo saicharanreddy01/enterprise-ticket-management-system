@@ -12,6 +12,7 @@ import com.enterprise.ticketmaster.exception.ResourceNotFoundException;
 import com.enterprise.ticketmaster.event.TicketEvent;
 import com.enterprise.ticketmaster.repository.CategoryRepository;
 import com.enterprise.ticketmaster.model.Priority;
+import org.springframework.data.domain.Sort;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -68,7 +69,7 @@ public class TicketService {
 
     public Page<Ticket> searchTickets(String q, String statusStr, String priorityStr,
                                       Long categoryId, String raisedBy, String assignedAgent,
-                                      int page, int size) {
+                                      String sortParam, int page, int size) {
         if (q == null) q = "";
         Status status     = (statusStr   != null && !statusStr.isBlank())   ? Status.valueOf(statusStr)     : null;
         Priority priority = (priorityStr != null && !priorityStr.isBlank()) ? Priority.valueOf(priorityStr) : null;
@@ -85,8 +86,18 @@ public class TicketService {
                 && raisedByParam == null && assignedAgentParam == null) {
             return getTicketsPaginated(page, size);
         }
-        return ticketRepository.searchWithFilters(q, numericQ, status, priority,
-                categoryId, raisedByParam, assignedAgentParam, PageRequest.of(page, size));
+        Sort sort = parseSort(sortParam);
+        return ticketRepository.searchWithFiltersSorted(q, numericQ, status, priority,
+                categoryId, raisedByParam, assignedAgentParam, PageRequest.of(page, size, sort));
+    }
+
+    private Sort parseSort(String sortParam) {
+        if (sortParam == null || sortParam.isBlank()) return Sort.by(Sort.Direction.DESC, "id");
+        String[] parts = sortParam.split(",");
+        String field = parts[0].trim();
+        Sort.Direction dir = parts.length > 1 && parts[1].trim().equals("asc")
+                ? Sort.Direction.ASC : Sort.Direction.DESC;
+        return Sort.by(dir, field);
     }
 
     public Ticket getTicketById(Long id) {

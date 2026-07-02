@@ -599,6 +599,15 @@
                             Export CSV
                         </a>
 
+                        <select id="consoleSortSelect" onchange="applySort()"
+                                style="font-size:13px; padding:6px 16px; border:1px solid var(--g-border);
+                                   border-radius:100px; background:var(--g-surface); font-family:var(--font-ui);
+                                   outline:none; cursor:pointer; color:var(--g-text-muted); height:40px;">
+                            <option value="id,desc">Newest first</option>
+                            <option value="id,asc">Oldest first</option>
+                            <option value="priority,desc">Priority ↑</option>
+                            <option value="slaDueDate,asc">SLA urgency</option>
+                        </select>
                         <div class="search-bar">
                             <span class="material-symbols-rounded" style="color: var(--g-text-muted); font-size: 20px;">search</span>
                             <input type="text" id="ticketSearch" placeholder="Search by Ticket ID, Title, or Assignee..." onkeyup="filterTickets()">
@@ -656,6 +665,20 @@
                      border:1px solid var(--g-blue);">
                     <span id="bulkCount" style="font-size:13px; font-weight:600; color:var(--g-blue);">0 selected</span>
                     <div style="display:flex; gap:8px; margin-left:auto; align-items:center;">
+                        <select id="bulkPrioritySelect"
+                                style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
+                                border-radius:6px; background:var(--g-surface); font-family:var(--font-ui); outline:none;">
+                            <option value="">Change priority...</option>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                        </select>
+
+                        <select id="bulkCategorySelect"
+                                style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
+                                border-radius:6px; background:var(--g-surface); font-family:var(--font-ui); outline:none;">
+                            <option value="">Change category...</option>
+                        </select>
                         <select id="bulkStatusSelect" style="font-size:13px; padding:6px 10px; border:1px solid var(--g-border);
                                 border-radius:6px; background:var(--g-surface); font-family:var(--font-ui); outline:none;">
                             <option value="">Change status...</option>
@@ -950,6 +973,20 @@
             </button>
         </div>
 
+        <!-- Attach files at creation time -->
+        <div style="margin-top:12px; border:1px dashed var(--g-border); border-radius:8px; padding:12px 16px;
+            display:flex; align-items:center; justify-content:space-between; background:var(--g-background);">
+            <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:var(--g-text-muted);">
+                <span class="material-symbols-rounded" style="font-size:18px;">attach_file</span>
+                <span id="createAttachLabel">Attach files (optional, max 10 MB each)</span>
+            </div>
+            <label style="cursor:pointer; font-size:13px; color:var(--g-blue); font-weight:500;">
+                Browse
+                <input type="file" id="createAttachInput" multiple style="display:none;"
+                       onchange="updateCreateAttachLabel(this)">
+            </label>
+        </div>
+
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 24px;">
             <button type="button" class="g-btn g-btn-text" onclick="document.getElementById('createModal').close()">Cancel</button>
             <button type="submit" class="g-btn g-btn-primary">Submit Ticket</button>
@@ -959,26 +996,46 @@
 
 <dialog id="resolveModal" class="md-dialog">
     <div style="display: flex; gap: 16px; margin-bottom: 24px;">
-        <div style="width: 48px; height: 48px; border-radius: 50%; background: #E6F4EA; color: var(--g-green); display: flex; align-items: center; justify-content: center; flex-shrink: 0;"><span class="material-symbols-rounded">task_alt</span></div>
+        <div style="width: 48px; height: 48px; border-radius: 50%; background: #E6F4EA; color: var(--g-green); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <span class="material-symbols-rounded">task_alt</span>
+        </div>
         <div>
             <h3 style="margin: 0 0 8px 0; font-family: var(--font-display); font-size: 20px;">Confirm Resolution</h3>
-            <p style="margin: 0; color: var(--g-text-muted); font-size: 14px; line-height: 1.5;">You are marking this incident as fully mitigated. This action will halt the SLA timer.</p>
+            <p style="margin: 0; color: var(--g-text-muted); font-size: 14px; line-height: 1.5;">Mark this incident as fully mitigated. The SLA timer will halt.</p>
         </div>
     </div>
     <div style="background-color: var(--g-background); padding: 16px; border-radius: 8px; margin-bottom: 24px; border: 1px solid var(--g-border);">
         <h4 id="resTitle" style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600;"></h4>
         <span id="resPriority" class="ticket-chip"></span>
     </div>
-    <div class="g-input-group" style="margin-bottom: 24px;">
+
+    <!-- Resolution notes — appended to ticket description -->
+    <div class="g-input-group" style="margin-bottom: 16px;">
         <textarea id="resolveNotes" placeholder=" " rows="3"
                   style="width: 100%; padding: 16px 14px; border: 1px solid var(--g-border); border-radius: 4px;
-                   font-family: var(--font-ui); font-size: 14px; background: transparent;
-                   outline: none; resize: vertical; box-sizing: border-box; color: var(--g-text-main);"></textarea>
+                         font-family: var(--font-ui); font-size: 14px; background: transparent;
+                         outline: none; resize: vertical; box-sizing: border-box; color: var(--g-text-main);"></textarea>
         <label for="resolveNotes">Resolution Notes <span style="color: var(--g-text-muted); font-weight: 400;">(optional)</span></label>
     </div>
+
+    <!-- Resolution comment — posted as a separate comment thread entry -->
+    <div style="background:var(--g-background); border:1px solid var(--g-border); border-radius:8px; padding:16px; margin-bottom:24px;">
+        <div style="font-size:12px; font-weight:600; color:var(--g-text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">
+            Post resolution comment
+        </div>
+        <textarea id="resolveComment" placeholder="Summarise what was done to fix this issue..." rows="3"
+                  style="width:100%; padding:12px 14px; border:1px solid var(--g-border); border-radius:8px;
+                         font-family:var(--font-ui); font-size:14px; background:var(--g-surface);
+                         outline:none; resize:vertical; box-sizing:border-box; color:var(--g-text-main);"></textarea>
+        <label style="display:flex; align-items:center; gap:8px; margin-top:10px; font-size:13px; color:var(--g-text-muted); cursor:pointer;">
+            <input type="checkbox" id="resolveCommentInternal" style="width:15px; height:15px; cursor:pointer;">
+            Internal note (agents only)
+        </label>
+    </div>
+
     <div style="display: flex; justify-content: flex-end; gap: 8px;">
         <button type="button" class="g-btn g-btn-text" onclick="document.getElementById('resolveModal').close()">Cancel</button>
-        <button type="button" class="g-btn g-btn-primary" onclick="submitResolve()">Confirm</button>
+        <button type="button" class="g-btn g-btn-primary" onclick="submitResolve()">Resolve & Post</button>
     </div>
 </dialog>
 

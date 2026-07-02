@@ -72,6 +72,18 @@ function updateCharCounter() {
     else if (len >= 850) counter.classList.add('near-limit');
 }
 
+function updateCreateAttachLabel(input) {
+    const label = document.getElementById('createAttachLabel');
+    if (!label) return;
+    if (input.files.length === 0) {
+        label.innerText = 'Attach files (optional, max 10 MB each)';
+    } else if (input.files.length === 1) {
+        label.innerText = input.files[0].name;
+    } else {
+        label.innerText = `${input.files.length} files selected`;
+    }
+}
+
 async function logout() {
     try {
         // Server reads refresh token from cookie, revokes it, and clears both cookies
@@ -98,7 +110,8 @@ let selectedTicketIds = new Set();
 let consoleSearchQuery = '';
 let quickFilterAssignedToMe = false;
 let quickFilterRaisedByMe   = false;
-let consoleLockedRaisedBy   = null;
+let consoleLockedRaisedBy   = null
+let consoleSortParam = 'id,desc';
 let mainChartInstance = null;
 let volumeChartInstance = null;
 let activeVolumeDays = 30;
@@ -262,6 +275,15 @@ async function loadCategories() {
                     opt.value = c.id;
                     opt.textContent = c.name;
                     filterCat.appendChild(opt);
+                });
+            }
+            const bulkCat = document.getElementById('bulkCategorySelect');
+            if (bulkCat) {
+                categories.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c.id;
+                    opt.textContent = c.name;
+                    bulkCat.appendChild(opt);
                 });
             }
         }
@@ -1246,7 +1268,7 @@ async function loadConsolePage(page, q, status, priority, categoryId) {
     consoleSearchQuery = q || '';
 
     const currentUser = localStorage.getItem('jwt_username');
-    const params = new URLSearchParams({ page, size: 20 });
+    const params = new URLSearchParams({ page, size: 20, sort: consoleSortParam });
     if (consoleSearchQuery) params.set('q', consoleSearchQuery);
     if (status)     params.set('status', status);
     if (priority)   params.set('priority', priority);
@@ -1330,6 +1352,11 @@ function clearFilters() {
     quickFilterRaisedByMe   = false;
     document.getElementById('subFilterAssigned')?.classList.remove('active');
     document.getElementById('subFilterRaised')?.classList.remove('active');
+    loadConsolePage(0, consoleSearchQuery);
+}
+
+function applySort() {
+    consoleSortParam = document.getElementById('consoleSortSelect')?.value || 'id,desc';
     loadConsolePage(0, consoleSearchQuery);
 }
 
@@ -1458,17 +1485,21 @@ function clearBulkSelection() {
 }
 
 async function applyBulkAction() {
-    const status      = document.getElementById('bulkStatusSelect').value;
-    const agent       = document.getElementById('bulkAgentSelect').value;
+    const status   = document.getElementById('bulkStatusSelect').value;
+    const agent    = document.getElementById('bulkAgentSelect').value;
+    const priority = document.getElementById('bulkPrioritySelect').value;
+    const category = document.getElementById('bulkCategorySelect').value;
 
-    if (!status && !agent) {
-        showToast('Select a status or agent to apply.', 'warning');
+    if (!status && !agent && !priority && !category) {
+        showToast('Select at least one field to update.', 'warning');
         return;
     }
 
     const role = localStorage.getItem('jwt_role');
     const body = { ticketIds: Array.from(selectedTicketIds) };
-    if (status) body.status = status;
+    if (status)   body.status   = status;
+    if (priority) body.priority = priority;
+    if (category) body.categoryId = Number(category);
     if (agent && role === 'ADMIN') body.assignedAgent = agent;
 
     try {
@@ -1479,8 +1510,10 @@ async function applyBulkAction() {
         });
         const result = await res.json();
         clearBulkSelection();
-        document.getElementById('bulkStatusSelect').value = '';
-        document.getElementById('bulkAgentSelect').value  = '';
+        document.getElementById('bulkStatusSelect').value   = '';
+        document.getElementById('bulkAgentSelect').value    = '';
+        document.getElementById('bulkPrioritySelect').value = '';
+        document.getElementById('bulkCategorySelect').value = '';
         refreshDataPipeline();
         loadConsolePage(consoleCurrentPage, consoleSearchQuery);
         showToast(`${result.updated} ticket(s) updated successfully.`, 'success');
@@ -1759,15 +1792,35 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             status: 'NEW'
         })
     });
+    const fileInput = document.getElementById('createAttachInput');
+    const files     = fileInput?.files;
+
     document.getElementById('ticketForm').reset();
     updateCharCounter();
+    updateCreateAttachLabel(document.getElementById('createAttachInput'));
     document.getElementById('createModal').close();
-    showToast('Ticket raised successfully.', 'success');
 
-    // Switch to Ops view to see the new ticket
+    showToast('Ticket raised successfully.', 'success');
     switchView('viewConsole', document.querySelectorAll('.nav-item')[2]);
-    refreshDataPipeline();
-    loadConsolePage(0, '');
+    await refreshDataPipeline();
+    await loadConsolePage(0, '');
+
+// Upload attachments after ticket is created (need the new ticket ID)
+    if (files && files.length > 0) {
+        const freshTickets = currentTickets;
+        const myUsername   = localStorage.getItem('jwt_username');
+        const newTicket    = freshTickets.find(t => t.raisedBy === myUsername);
+        if (newTicket) {
+            for (const file of files) {
+                const fd = new FormData();
+                fd.append('file', file);
+                await fetchWithAuth(`/api/tickets/${newTicket.id}/attachments`, {
+                    method: 'POST', credentials: 'include', body: fd
+                });
+            }
+            showToast(`${files.length} attachment${files.length > 1 ? 's' : ''} uploaded.`, 'success');
+        }
+    }
 });
 
 async function startProgress(id) {
@@ -1796,12 +1849,15 @@ async function submitResolve() {
     const ticket = currentTickets.find(t => t.id === ticketIdPendingResolve);
     if (!ticket) return;
 
-    const notes = document.getElementById('resolveNotes').value.trim();
-    // Append resolution notes to original description if provided — never replace it
+    const notes   = document.getElementById('resolveNotes').value.trim();
+    const comment = document.getElementById('resolveComment').value.trim();
+    const isInternal = document.getElementById('resolveCommentInternal').checked;
+
     const finalDescription = notes
         ? ticket.description + '\n\n--- Resolution Notes ---\n' + notes
         : ticket.description;
 
+    // 1. Resolve the ticket
     await fetchWithAuth(`/api/tickets/${ticketIdPendingResolve}`, {
         method: 'PUT', headers: authHeaders(),
         body: JSON.stringify({
@@ -1811,10 +1867,21 @@ async function submitResolve() {
             status: 'RESOLVED'
         })
     });
+
+    // 2. Post resolution comment if provided
+    if (comment) {
+        await fetchWithAuth(`/api/tickets/${ticketIdPendingResolve}/comments`, {
+            method: 'POST', headers: authHeaders(),
+            body: JSON.stringify({ content: comment, isInternal })
+        });
+    }
+
     document.getElementById('resolveModal').close();
-    document.getElementById('resolveNotes').value = '';
+    document.getElementById('resolveNotes').value   = '';
+    document.getElementById('resolveComment').value = '';
+    document.getElementById('resolveCommentInternal').checked = false;
     ticketIdPendingResolve = null;
-    showToast('Ticket marked as resolved.', 'success');
+    showToast('Ticket resolved and comment posted.', 'success');
     refreshDataPipeline();
     loadConsolePage(consoleCurrentPage, consoleSearchQuery);
 }

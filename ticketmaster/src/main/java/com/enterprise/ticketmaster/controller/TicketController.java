@@ -46,10 +46,11 @@ public class TicketController {
             @RequestParam(required = false) Long categoryId,
             @RequestParam(required = false) String raisedBy,
             @RequestParam(required = false) String assignedAgent,
+            @RequestParam(required = false, defaultValue = "id,desc") String sort,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
         return ResponseEntity.ok(ticketService.searchTickets(
-                q, status, priority, categoryId, raisedBy, assignedAgent, page, size));
+                q, status, priority, categoryId, raisedBy, assignedAgent, sort, page, size));
     }
 
     @PostMapping
@@ -101,6 +102,8 @@ public class TicketController {
         String newStatus        = (String) body.get("status");
         String newAssignedAgent = (String) body.get("assignedAgent");
         String actor = authentication != null ? authentication.getName() : "system";
+        String newPriority  = (String) body.get("priority");
+        Integer newCategoryId = body.get("categoryId") != null ? ((Number) body.get("categoryId")).intValue() : null;
 
         // Block developers from using CLOSED or OPEN as bulk status
         if (!isAdmin && newStatus != null &&
@@ -133,6 +136,25 @@ public class TicketController {
                 }
                 if (newAssignedAgent != null && !newAssignedAgent.isBlank()) {
                     ticket = ticketService.assignAgent(id, newAssignedAgent, actor);
+                }
+                if (newPriority != null && !newPriority.isBlank()) {
+                    Ticket priorityUpdate = new Ticket();
+                    priorityUpdate.setTitle(ticket.getTitle());
+                    priorityUpdate.setDescription(ticket.getDescription());
+                    priorityUpdate.setStatus(ticket.getStatus());
+                    priorityUpdate.setPriority(com.enterprise.ticketmaster.model.Priority.valueOf(newPriority));
+                    ticket = ticketService.updateTicket(id, priorityUpdate, actor);
+                }
+                if (newCategoryId != null) {
+                    com.enterprise.ticketmaster.model.Category cat = new com.enterprise.ticketmaster.model.Category();
+                    cat.setId(newCategoryId.longValue());
+                    Ticket catUpdate = new Ticket();
+                    catUpdate.setTitle(ticket.getTitle());
+                    catUpdate.setDescription(ticket.getDescription());
+                    catUpdate.setStatus(ticket.getStatus());
+                    catUpdate.setPriority(ticket.getPriority());
+                    catUpdate.setCategory(cat);
+                    ticket = ticketService.updateTicket(id, catUpdate, actor);
                 }
                 updated.add(ticket);
             } catch (Exception e) {
