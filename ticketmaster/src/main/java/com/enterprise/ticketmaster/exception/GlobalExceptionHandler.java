@@ -32,4 +32,14 @@ public class GlobalExceptionHandler {
         errorResponse.put("error", ex.getMessage());
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
+
+    // 3. Catch-all for DB constraint violations (e.g. blank/duplicate email slipping
+    // past controller-level validation) so they never surface as a raw 500 + stack trace.
+    @ExceptionHandler(org.springframework.dao.DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(
+            org.springframework.dao.DataIntegrityViolationException ex) {
+        Map<String, String> errorResponse = new HashMap<>();
+        errorResponse.put("error", "That request conflicts with existing data (e.g. a duplicate or missing required field).");
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
 }

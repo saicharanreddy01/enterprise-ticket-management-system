@@ -111,6 +111,13 @@ public class TicketService {
 
     public Ticket updateTicket(Long id, Ticket updatedTicketDetails, String resolvedBy) {
         return ticketRepository.findById(id).map(existingTicket -> {
+
+            if (updatedTicketDetails.getCategory() != null && updatedTicketDetails.getCategory().getId() != null) {
+                Category realCategory = categoryRepository.findById(updatedTicketDetails.getCategory().getId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Category not found"));
+                updatedTicketDetails.setCategory(realCategory);
+            }
+
             Status oldStatus = existingTicket.getStatus();
             Priority oldPriority = existingTicket.getPriority();
             String oldAssignedTo = existingTicket.getAssignedTo();

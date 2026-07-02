@@ -19,6 +19,9 @@ public class User {
     @Column(nullable = false)
     private String role;
 
+    @Column(nullable = false, unique = true)
+    private String email;
+
     @Column(name = "failed_attempts", nullable = false)
     private int failedAttempts = 0;
 
@@ -50,4 +53,7 @@ public class User {
 
     public java.time.LocalDateTime getLockedUntil() { return lockedUntil; }
     public void setLockedUntil(java.time.LocalDateTime lockedUntil) { this.lockedUntil = lockedUntil; }
+
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
 }

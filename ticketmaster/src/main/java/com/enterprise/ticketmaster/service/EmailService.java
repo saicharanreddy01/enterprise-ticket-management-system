@@ -1,5 +1,6 @@
 package com.enterprise.ticketmaster.service;
 
+import com.enterprise.ticketmaster.model.Ticket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -128,6 +129,29 @@ public class EmailService {
                     </div>
                 </div>
                 """.formatted(ticketId, resolvedBy != null ? resolvedBy : "System", title);
+        send(toEmail, subject, body);
+    }
+
+    @Async
+    public void sendTicketAssignmentEmail(String toEmail, Ticket ticket) {
+        String subject = "New Ticket Assigned: #" + ticket.getId() + " - " + ticket.getTitle();
+        String body = """
+                <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
+                    <div style="background: #1A73E8; padding: 24px 32px;">
+                        <h1 style="color: white; margin: 0; font-size: 20px;">Ticketmaster Enterprise</h1>
+                    </div>
+                    <div style="padding: 32px; border: 1px solid #E0E0E0; border-top: none;">
+                        <h2 style="color: #202124; margin: 0 0 16px 0;">Ticket Assigned To You</h2>
+                        <p style="color: #5F6368;">Ticket <strong>#%d</strong> has just been routed to your queue.</p>
+                        <div style="background: #F8F9FA; padding: 16px; border-radius: 8px; margin: 24px 0; border-left: 4px solid #1A73E8;">
+                            <p style="margin: 0; font-weight: 600; color: #202124;">%s</p>
+                            <p style="margin: 8px 0 0 0; font-size: 14px; color: #5F6368;">Priority: <strong>%s</strong></p>
+                        </div>
+                        <p style="color: #5F6368;">Please log in to the Enterprise Console to acknowledge and begin work on this request.</p>
+                    </div>
+                </div>
+                """.formatted(ticket.getId(), ticket.getTitle(), ticket.getPriority());
+
         send(toEmail, subject, body);
     }
 

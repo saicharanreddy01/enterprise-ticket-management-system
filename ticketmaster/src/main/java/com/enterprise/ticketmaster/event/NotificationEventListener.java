@@ -1,7 +1,10 @@
 package com.enterprise.ticketmaster.event;
 
 import com.enterprise.ticketmaster.model.Notification;
+import com.enterprise.ticketmaster.model.NotificationType;
+import com.enterprise.ticketmaster.model.Ticket;
 import com.enterprise.ticketmaster.repository.NotificationRepository;
+import com.enterprise.ticketmaster.repository.UserRepository;
 import com.enterprise.ticketmaster.service.EmailService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
@@ -12,26 +15,29 @@ public class NotificationEventListener {
 
     private final NotificationRepository notificationRepository;
     private final EmailService emailService;
+    private final UserRepository userRepository;
 
     @Value("${app.mail.notify:}")
     private String notifyEmail;
 
     public NotificationEventListener(NotificationRepository notificationRepository,
                                      @org.springframework.beans.factory.annotation.Autowired(required = false)
-                                     EmailService emailService) {
+                                     EmailService emailService,
+                                     UserRepository userRepository) {
         this.notificationRepository = notificationRepository;
         this.emailService = emailService;
+        this.userRepository = userRepository;
     }
 
     @EventListener
     public void handleTicketEvent(TicketEvent event) {
+        Ticket ticket = event.getTicket();
         Notification notification = new Notification();
         notification.setType(event.getType());
-        notification.setRelatedTicketId(event.getTicket().getId());
+        notification.setRelatedTicketId(ticket.getId());
 
-        Long ticketId  = event.getTicket().getId();
-        String title   = event.getTicket().getTitle();
-        String resolvedBy = event.getTicket().getResolvedBy();
+        Long ticketId  = ticket.getId();
+        String title   = ticket.getTitle();
 
         switch (event.getType()) {
             case TICKET_CREATED -> {
@@ -62,6 +68,16 @@ public class NotificationEventListener {
             }
             case TICKET_ASSIGNED -> {
                 notification.setMessage("Ticket #" + ticketId + " has been assigned to you: " + title);
+
+                String assignedUsername = ticket.getAssignedAgent();
+                if (assignedUsername != null && !assignedUsername.isBlank()) {
+                    userRepository.findByUsername(assignedUsername).ifPresent(user -> {
+                        String agentEmail = user.getEmail();
+                        if (emailService != null && agentEmail != null && !agentEmail.isBlank()) {
+                            emailService.sendTicketAssignmentEmail(agentEmail, ticket);
+                        }
+                    });
+                }
             }
             case TICKET_REOPENED ->
                     notification.setMessage("Ticket #" + ticketId + " reopened: " + title);

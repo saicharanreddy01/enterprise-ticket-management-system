@@ -48,7 +48,19 @@ public class TicketController {
             @RequestParam(required = false) String assignedAgent,
             @RequestParam(required = false, defaultValue = "id,desc") String sort,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
+            @RequestParam(defaultValue = "20") int size,
+            Authentication authentication) { // <-- 1. Inject Authentication
+
+        // 2. Check if this is a standard end-user
+        boolean isEndUser = authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_USER"));
+
+        // 3. Force data isolation: End users can ONLY retrieve tickets they raised
+        if (isEndUser) {
+            raisedBy = authentication.getName();
+            assignedAgent = null; // Prevent them from filtering by agent
+        }
+
         return ResponseEntity.ok(ticketService.searchTickets(
                 q, status, priority, categoryId, raisedBy, assignedAgent, sort, page, size));
     }

@@ -8,6 +8,7 @@ import com.enterprise.ticketmaster.config.JwtUtil;
 import com.enterprise.ticketmaster.model.RefreshToken;
 import com.enterprise.ticketmaster.model.User;
 import com.enterprise.ticketmaster.repository.UserRepository;
+import com.enterprise.ticketmaster.repository.RefreshTokenRepository;
 import com.enterprise.ticketmaster.service.RefreshTokenService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -36,6 +37,7 @@ public class AuthController {
     private final UserDetailsService userDetailsService;
     private final JwtUtil jwtUtil;
     private final RefreshTokenService refreshTokenService;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final SecurityEventRepository securityEventRepository;
     private final PasswordResetRequestRepository passwordResetRequestRepository;
 
@@ -45,6 +47,7 @@ public class AuthController {
                           UserDetailsService userDetailsService,
                           JwtUtil jwtUtil,
                           RefreshTokenService refreshTokenService,
+                          RefreshTokenRepository refreshTokenRepository,
                           SecurityEventRepository securityEventRepository,
                           PasswordResetRequestRepository passwordResetRequestRepository) {
         this.userRepository = userRepository;
@@ -53,6 +56,7 @@ public class AuthController {
         this.userDetailsService = userDetailsService;
         this.jwtUtil = jwtUtil;
         this.refreshTokenService = refreshTokenService;
+        this.refreshTokenRepository = refreshTokenRepository;
         this.securityEventRepository = securityEventRepository;
         this.passwordResetRequestRepository = passwordResetRequestRepository;
     }
@@ -217,6 +221,15 @@ public class AuthController {
         if (!user.getRole().equals("DEVELOPER") && !user.getRole().equals("ADMIN") && !user.getRole().equals("USER")) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Invalid role. Must be DEVELOPER, ADMIN, or USER.");
         }
+        if (user.getEmail() == null || user.getEmail().isBlank()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Email address is required.");
+        }
+        if (!user.getEmail().matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Please provide a valid email address.");
+        }
+        if (userRepository.findByEmail(user.getEmail()).isPresent()) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email address already in use.");
+        }
 
         // --- Password policy enforcement ---
         String password = user.getPassword();
@@ -252,12 +265,18 @@ public class AuthController {
     }
 
     @DeleteMapping("/users/{id}")
+    @org.springframework.transaction.annotation.Transactional
     public ResponseEntity<String> deleteUser(@PathVariable Long id) {
-        if (!userRepository.existsById(id)) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("User not found with id: " + id);
-        }
-        userRepository.deleteById(id);
-        return ResponseEntity.ok("User deleted successfully.");
+        return userRepository.findById(id)
+                .map(user -> {
+                    // Refresh tokens have a FK to users with no cascade — must go first,
+                    // otherwise MySQL rejects the user delete with a constraint violation.
+                    refreshTokenRepository.deleteByUser(user);
+                    userRepository.delete(user);
+                    return ResponseEntity.ok("User deleted successfully.");
+                })
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body("User not found with id: " + id));
     }
 
     private String extractCookie(HttpServletRequest request, String name) {

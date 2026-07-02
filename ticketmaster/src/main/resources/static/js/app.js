@@ -986,44 +986,38 @@ async function submitComment() {
 }
 
 async function loadAttachments(ticketId) {
-    const list = document.getElementById('attachmentList');
-    if (!list) return;
+    const attachContainer = document.getElementById('attachmentsList');
+    if (!attachContainer) return; // Guard clause if the element doesn't exist
+
+    attachContainer.innerHTML = '<span class="text-sm text-gray-500">Loading...</span>';
 
     try {
-        const res = await fetchWithAuth(`/api/tickets/${ticketId}/attachments`, {
-            headers: authHeaders()
-        });
-        const attachments = await res.json();
+        const response = await fetchWithAuth(`/api/tickets/${ticketId}/attachments`, { headers: authHeaders() });
+        if (response.ok) {
+            const attachments = await response.json();
 
-        if (!attachments.length) {
-            list.innerHTML = '<span style="font-size:13px; color:var(--g-text-muted);">No attachments yet.</span>';
-            return;
+            if (attachments.length === 0) {
+                attachContainer.innerHTML = '<span class="text-sm text-gray-500">No attachments.</span>';
+                return;
+            }
+
+            attachContainer.innerHTML = ''; // Clear loading
+
+            attachments.forEach(file => {
+                const fileLink = document.createElement('a');
+                // Ensure this URL matches your AttachmentController mapping
+                fileLink.href = `/api/tickets/${file.ticketId}/attachments/${file.id}/download`;
+                fileLink.target = '_blank';
+                fileLink.className = 'g-chip bg-blue-50 text-blue-700 hover:bg-blue-100 mr-2 mb-2 inline-flex items-center p-2 rounded-lg';
+                fileLink.innerHTML = `<span class="material-symbols-rounded mr-1 text-sm">attach_file</span> ${escapeHtml(file.originalFilename)}`;
+                attachContainer.appendChild(fileLink);
+            });
+        } else {
+            attachContainer.innerHTML = '<span class="text-sm text-red-500">Could not load attachments.</span>';
         }
-
-        list.innerHTML = attachments.map(a => `
-            <div style="display:flex; align-items:center; justify-content:space-between;
-                        padding: 8px 12px; background:var(--g-background);
-                        border:1px solid var(--g-border); border-radius:8px;">
-                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                    <span class="material-symbols-rounded" style="font-size:18px; color:var(--g-blue); flex-shrink:0;">attach_file</span>
-                    <div style="min-width:0;">
-                        <div style="font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${escapeHtml(a.originalFilename)}
-                        </div>
-                        <div style="font-size:11px; color:var(--g-text-muted);">
-                            ${formatFileSize(a.fileSize)} · ${a.uploadedBy} · ${formatHistoryTimestamp(a.uploadedAt)}
-                        </div>
-                    </div>
-                </div>
-                <a href="/api/tickets/${a.ticketId}/attachments/${a.id}/download"
-                   style="color:var(--g-blue); font-size:12px; font-weight:500; text-decoration:none;
-                          white-space:nowrap; margin-left:12px; flex-shrink:0;">
-                    Download
-                </a>
-            </div>
-        `).join('');
-    } catch (e) {
-        console.error('Failed to load attachments:', e);
+    } catch (error) {
+        console.error('Error loading attachments:', error);
+        attachContainer.innerHTML = '<span class="text-sm text-red-500">Error loading files.</span>';
     }
 }
 
@@ -1525,6 +1519,7 @@ async function applyBulkAction() {
 // --- 4. Admin Feature ---
 async function adminRegisterUser() {
     const u = document.getElementById('regUser').value;
+    const e = document.getElementById('regEmail').value; // <-- Grab the email
     const p = document.getElementById('regPass').value;
     const r = document.querySelector('input[name="regRole"]:checked')?.value || 'DEVELOPER';
     const msgBox = document.getElementById('adminMsg');
@@ -1532,17 +1527,23 @@ async function adminRegisterUser() {
     try {
         const response = await fetchWithAuth('/api/auth/register', {
             method: 'POST', headers: authHeaders(),
-            body: JSON.stringify({ username: u, password: p, role: r })
+            // Include 'email: e' in the payload sent to Spring Boot
+            body: JSON.stringify({ username: u, email: e, password: p, role: r })
         });
         if (response.ok) {
             msgBox.style.display = 'block';
             msgBox.style.backgroundColor = '#E6F4EA';
             msgBox.style.color = '#1E8E3E';
             msgBox.innerText = `✓ Account created successfully for ${u}`;
+
+            // Clear the form
             document.getElementById('regUser').value = '';
+            document.getElementById('regEmail').value = ''; // <-- Clear the email
             document.getElementById('regPass').value = '';
+
             loadUserDirectory();
         } else {
+            // ... rest of your error handling stays exactly the same
             const err = await response.text();
             msgBox.style.display = 'block';
             msgBox.style.backgroundColor = '#FCE8E6';
@@ -1657,14 +1658,28 @@ async function loadUserDirectory() {
     }
 }
 
-async function deleteUserFromDirectory(id, username) {
+async function deleteUserFromDirectory(userId, username) {
     if (!confirm(`Remove user "${username}"? This cannot be undone.`)) return;
+
     try {
-        await fetchWithAuth(`/api/auth/users/${id}`, { method: 'DELETE', headers: authHeaders() });
-        loadUserDirectory();
-        showToast(`User "${username}" removed.`, 'success');
-    } catch(e) {
-        console.error('Failed to delete user:', e);
+        const response = await fetchWithAuth(`/api/auth/users/${userId}`, {
+            method: 'DELETE',
+            headers: authHeaders()
+        });
+
+        if (response.ok) {
+            showToast(`User "${username}" removed.`, 'success');
+            loadUserDirectory(); // Refresh the list
+        } else if (response.status === 409) {
+            const errorMsg = await response.text();
+            showToast(errorMsg, 'error');
+        } else {
+            console.error("Delete failed with status:", response.status);
+            showToast('Failed to delete user.', 'error');
+        }
+    } catch (error) {
+        console.error("Network or script error during delete:", error);
+        showToast('System error. Check console.', 'error');
     }
 }
 
@@ -1782,7 +1797,9 @@ async function dismissPasswordRequest(requestId) {
 // --- Forms & Modals ---
 document.getElementById('ticketForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-    await fetchWithAuth('/api/tickets', {
+
+    // 1. Capture the response to get the newly created ticket's ID
+    const response = await fetchWithAuth('/api/tickets', {
         method: 'POST', headers: authHeaders(),
         body: JSON.stringify({
             title: document.getElementById('title').value,
@@ -1792,35 +1809,44 @@ document.getElementById('ticketForm').addEventListener('submit', async (e) => {
             status: 'NEW'
         })
     });
-    const fileInput = document.getElementById('createAttachInput');
-    const files     = fileInput?.files;
 
+    if (!response.ok) {
+        showToast('Failed to raise ticket. Please try again.', 'error');
+        return;
+    }
+
+    // 2. Extract the actual ticket data from the server
+    const createdTicket = await response.json();
+    const newTicketId = createdTicket.id;
+
+    const fileInput = document.getElementById('createAttachInput');
+    const files = fileInput?.files;
+
+    // Reset the form
     document.getElementById('ticketForm').reset();
     updateCharCounter();
     updateCreateAttachLabel(document.getElementById('createAttachInput'));
     document.getElementById('createModal').close();
 
-    showToast('Ticket raised successfully.', 'success');
+    // 3. Upload attachments using the REAL new ticket ID
+    if (files && files.length > 0) {
+        let uploaded = 0;
+        for (const file of files) {
+            const fd = new FormData();
+            fd.append('file', file);
+            const uploadRes = await fetchWithAuth(`/api/tickets/${newTicketId}/attachments`, {
+                method: 'POST', credentials: 'include', body: fd
+            });
+            if (uploadRes.ok) uploaded++;
+        }
+        showToast(`Ticket #${newTicketId} raised with ${uploaded} attachment(s).`, 'success');
+    } else {
+        showToast(`Ticket #${newTicketId} raised successfully.`, 'success');
+    }
+
     switchView('viewConsole', document.querySelectorAll('.nav-item')[2]);
     await refreshDataPipeline();
     await loadConsolePage(0, '');
-
-// Upload attachments after ticket is created (need the new ticket ID)
-    if (files && files.length > 0) {
-        const freshTickets = currentTickets;
-        const myUsername   = localStorage.getItem('jwt_username');
-        const newTicket    = freshTickets.find(t => t.raisedBy === myUsername);
-        if (newTicket) {
-            for (const file of files) {
-                const fd = new FormData();
-                fd.append('file', file);
-                await fetchWithAuth(`/api/tickets/${newTicket.id}/attachments`, {
-                    method: 'POST', credentials: 'include', body: fd
-                });
-            }
-            showToast(`${files.length} attachment${files.length > 1 ? 's' : ''} uploaded.`, 'success');
-        }
-    }
 });
 
 async function startProgress(id) {
