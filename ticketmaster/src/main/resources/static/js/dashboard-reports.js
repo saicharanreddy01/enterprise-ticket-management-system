@@ -242,19 +242,18 @@ async function loadVolumeTrend(days) {
 }
 
 // --- 3a. Dashboard Charts (tabbed panel) ---
-function renderDashboardCharts(tickets) {
-    renderSlaMetric(tickets);
-    switchChartTab(activeChartTab, null, tickets);
+function renderDashboardCharts(summary) {
+    lastDashboardSummary = summary;
+    renderSlaMetric(summary.slaCompliancePct);
+    switchChartTab(activeChartTab, null, summary);
 }
 
-function renderSlaMetric(tickets) {
-    const withDeadline = tickets.filter(t => t.slaDueDate);
-    if (withDeadline.length === 0) {
+function renderSlaMetric(slaCompliancePct) {
+    if (slaCompliancePct === null || slaCompliancePct === undefined) {
         document.getElementById('metricSla').innerText = 'N/A';
         return;
     }
-    const compliant = withDeadline.filter(t => !t.slaBreached).length;
-    const pct = Math.round((compliant / withDeadline.length) * 100);
+    const pct = slaCompliancePct;
     document.getElementById('metricSla').innerText = `${pct}%`;
     const barColor = pct >= 80 ? brandColor('--viz-green', '#16A34A')
         : pct >= 60 ? brandColor('--viz-orange', '#F59E0B')
@@ -264,43 +263,39 @@ function renderSlaMetric(tickets) {
     document.getElementById('metricSla').style.color = barColor;
 }
 
-function renderDevPersonalWidget(tickets) {
+async function renderDevPersonalWidget() {
     const widget = document.getElementById('devPersonalWidget');
     if (!widget || widget.style.display === 'none') return;
 
-    const currentUser = localStorage.getItem('jwt_username');
-    if (!currentUser) return;
+    try {
+        const res = await fetchWithAuth('/api/reports/dashboard-summary/me', { headers: authHeaders() });
+        if (!res.ok) return;
+        const summary = await res.json();
 
-    const myTickets    = tickets.filter(t => t.assignedAgent === currentUser);
-    const myOpen       = myTickets.filter(t => !['RESOLVED', 'CLOSED'].includes(t.status));
-    const myWithSla    = myTickets.filter(t => t.slaDueDate);
-    const myCompliant  = myWithSla.filter(t => !t.slaBreached);
-    const slaRate      = myWithSla.length > 0
-        ? Math.round((myCompliant.length / myWithSla.length) * 100) + '%' : 'N/A';
-
-    const today        = new Date().toDateString();
-    const resolvedToday = myTickets.filter(t =>
-        t.status === 'RESOLVED' && t.resolvedAt &&
-        new Date(t.resolvedAt).toDateString() === today
-    ).length;
-
-    document.getElementById('devOpenCount').innerText    = myOpen.length;
-    document.getElementById('devSlaRate').innerText      = slaRate;
-    document.getElementById('devResolvedToday').innerText = resolvedToday;
+        document.getElementById('devOpenCount').innerText     = summary.openCount;
+        document.getElementById('devSlaRate').innerText        = summary.slaCompliancePct == null ? 'N/A' : summary.slaCompliancePct + '%';
+        document.getElementById('devResolvedToday').innerText  = summary.resolvedToday;
+    } catch (e) {
+        console.error('Failed to load personal dashboard summary:', e);
+    }
 }
 
-function switchChartTab(tab, el, tickets) {
+// Cached from the last /api/reports/dashboard-summary call, so switching
+// chart tabs re-renders instantly without a network round-trip.
+let lastDashboardSummary = null;
+
+function switchChartTab(tab, el, summary) {
     // Update active tab highlight
     activeChartTab = tab;
     if (el) {
         document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
         el.classList.add('active');
     }
-    // Use live data or fall back to currentTickets if called from a tab click
-    const data = tickets || currentTickets;
-    if (tab === 'status')    renderStatusChart(data);
-    if (tab === 'category')  renderCategoryChart(data);
-    if (tab === 'priority')  renderPriorityChart(data);
+    const data = summary || lastDashboardSummary;
+    if (!data) return;
+    if (tab === 'status')    renderStatusChart(data.statusBreakdown);
+    if (tab === 'category')  renderCategoryChart(data.categoryBreakdown);
+    if (tab === 'priority')  renderPriorityChart(data.priorityBreakdown);
 }
 
 function buildChart(type, labels, values, colors, opts = {}) {
@@ -392,7 +387,12 @@ function hideChartEmptyState(canvasId) {
     if (placeholder) placeholder.style.display = 'none';
 }
 
-function renderStatusChart(tickets) {
+// These three used to take a full array of tickets and count them client-side.
+// They now take the already-aggregated counts object the backend computes via
+// GROUP BY — same charts, but the payload is a handful of numbers instead of
+// every ticket in the system, and it doesn't get slower as ticket volume grows.
+
+function renderStatusChart(statusBreakdown) {
     const order  = ['OPEN', 'IN_PROGRESS', 'NEW', 'PENDING', 'REOPENED', 'RESOLVED', 'CLOSED'];
     // Vivid, clearly differentiated status palette. CLOSED — often the
     // largest slice — gets neutral slate rather than dark navy, so the whole
@@ -406,22 +406,15 @@ function renderStatusChart(tickets) {
         RESOLVED:     brandColor('--viz-green', '#16A34A'),
         CLOSED:       brandColor('--viz-slate', '#64748B')
     };
-    const counts = {};
-    order.forEach(s => counts[s] = 0);
-    tickets.forEach(t => { if (counts[t.status] !== undefined) counts[t.status]++; });
-    const active = order.filter(s => counts[s] > 0);
+    const counts = statusBreakdown || {};
+    const active = order.filter(s => (counts[s] || 0) > 0);
     if (!active.length) { showChartEmptyState('mainChart', 'No tickets yet — raise one to see the status breakdown.'); return; }
     hideChartEmptyState('mainChart');
     buildChart('doughnut', active, active.map(s => counts[s]), active.map(s => colors[s]));
 }
 
-function renderCategoryChart(tickets) {
-    const counts = {};
-    tickets.forEach(t => {
-        const name = t.category ? t.category.name : 'Uncategorized';
-        counts[name] = (counts[name] || 0) + 1;
-    });
-    const sorted  = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+function renderCategoryChart(categoryBreakdown) {
+    const sorted  = Object.entries(categoryBreakdown || {}).sort((a, b) => b[1] - a[1]);
     const labels  = sorted.map(([k]) => k);
     const values  = sorted.map(([, v]) => v);
     if (!labels.length) { showChartEmptyState('mainChart', 'No category data yet.'); return; }
@@ -434,9 +427,8 @@ function renderCategoryChart(tickets) {
     buildChart('bar', labels, values, labels.map((_, i) => palette[i % palette.length]), { horizontal: true });
 }
 
-function renderPriorityChart(tickets) {
-    const counts = { HIGH: 0, MEDIUM: 0, LOW: 0 };
-    tickets.forEach(t => { if (counts[t.priority] !== undefined) counts[t.priority]++; });
+function renderPriorityChart(priorityBreakdown) {
+    const counts = { HIGH: 0, MEDIUM: 0, LOW: 0, ...(priorityBreakdown || {}) };
     const labels = Object.keys(counts).filter(p => counts[p] > 0);
     if (!labels.length) { showChartEmptyState('mainChart', 'No priority data yet.'); return; }
     hideChartEmptyState('mainChart');

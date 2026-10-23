@@ -261,7 +261,9 @@ function renderStatusStepper(ticket) {
 async function toggleSlaPause() {
     if (!currentDetailTicketId) return;
 
-    const ticket = currentTickets.find(t => t.id === currentDetailTicketId);
+    const ticket = (currentDetailTicket && currentDetailTicket.id === currentDetailTicketId)
+        ? currentDetailTicket
+        : currentTickets.find(t => t.id === currentDetailTicketId);
     if (!ticket) return;
 
     const newStatus = ticket.status === 'PENDING' ? 'IN_PROGRESS' : 'PENDING';

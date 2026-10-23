@@ -64,22 +64,28 @@ async function loadAgentWorkload() {
 }
 
 // --- 3. Pipeline & Table Rendering ---
+// Previously this fetched EVERY ticket in the system (with comments eagerly
+// joined, no pagination) just to count statuses and percentages in JS. That
+// doesn't scale — at real volume it means shipping a multi-hundred-MB
+// response to the browser to render four numbers and a donut chart. Now it
+// calls one aggregation endpoint that does the counting in SQL and returns a
+// handful of numbers regardless of ticket volume.
 async function refreshDataPipeline() {
     try {
-        const response = await fetchWithAuth('/api/tickets', { headers: authHeaders() });
+        const response = await fetchWithAuth('/api/reports/dashboard-summary', { headers: authHeaders() });
         if (response.ok) {
-            const rawData = await response.json();
-            const tickets = Array.isArray(rawData) ? rawData : (rawData.content || []);
-            currentTickets = tickets;
+            const summary = await response.json();
 
-            document.getElementById('metricTotal').innerText = tickets.length;
-            document.getElementById('metricOpen').innerText = tickets.filter(t => ['NEW', 'OPEN', 'IN_PROGRESS'].includes(t.status)).length;
-            document.getElementById('metricResolved').innerText = tickets.filter(t => ['RESOLVED', 'CLOSED'].includes(t.status)).length;
+            document.getElementById('metricTotal').innerText    = summary.total;
+            document.getElementById('metricOpen').innerText     = summary.openCount;
+            document.getElementById('metricResolved').innerText = summary.resolvedCount;
 
-            renderDevPersonalWidget(tickets);
-            renderDashboardCharts(tickets);
+            renderDashboardCharts(summary);
         }
     } catch (e) { console.error("Pipeline Sync Error:", e); }
+
+    // Independent of the aggregate summary above — its own small, scoped call.
+    renderDevPersonalWidget();
 }
 
 // Shared with ticket-detail.js — one urgency-badge language across the whole app.
@@ -213,7 +219,12 @@ async function loadConsolePage(page, q, status, priority, categoryId) {
         });
         if (!response.ok) return;
         const data = await response.json();
-        renderTable(data.content || []);
+        // Backs the console-row action fallback in ticket-detail.js
+        // (startProgress/prepResolve when the detail modal isn't open) —
+        // these only ever need "whatever's visible on screen right now,"
+        // not a global list, so the current page's own content is enough.
+        currentTickets = data.content || [];
+        renderTable(currentTickets);
         renderPaginationControls(data);
     } catch (e) {
         console.error('Console load error:', e);

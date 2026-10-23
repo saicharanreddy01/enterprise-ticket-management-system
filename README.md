@@ -152,6 +152,6 @@ This project went through a full competitive gap-analysis roadmap comparing Tick
 
 ## Author
 
-- P. Sai Charan Reddy 
+- P Sai Charan Reddy 
 - B.Tech CSE(AI), Class of 2027, MITS
 - Stanford University Innovation Fellow

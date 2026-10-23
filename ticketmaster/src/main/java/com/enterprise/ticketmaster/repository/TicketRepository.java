@@ -160,4 +160,53 @@ public interface TicketRepository extends JpaRepository<Ticket, Long> {
         ORDER BY day ASC
         """, nativeQuery = true)
     List<Object[]> findDailyVolume(@Param("from") LocalDateTime from);
+
+    // =========================================================================
+    // Dashboard aggregation — computed in the database instead of fetching
+    // every ticket into the app and counting them in Java/JS. The old approach
+    // (findAllWithDetails(), which LEFT JOIN FETCHes comments on every ticket
+    // with no pagination) doesn't just waste bandwidth — the comment join
+    // multiplies the result set per ticket, so it gets dramatically worse as
+    // both tickets and comments grow. None of these five queries scale with
+    // ticket volume the way that one did.
+    // =========================================================================
+
+    @Query(value = """
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN status IN ('NEW','OPEN','IN_PROGRESS','PENDING','REOPENED') THEN 1 ELSE 0 END) AS openCount,
+            SUM(CASE WHEN status IN ('RESOLVED','CLOSED') THEN 1 ELSE 0 END) AS resolvedCount,
+            SUM(CASE WHEN sla_due_date IS NOT NULL THEN 1 ELSE 0 END) AS withSla,
+            SUM(CASE WHEN sla_due_date IS NOT NULL AND sla_breached = false THEN 1 ELSE 0 END) AS slaCompliant
+        FROM tickets
+        """, nativeQuery = true)
+    Object[] getDashboardCounts();
+
+    @Query(value = "SELECT status, COUNT(*) FROM tickets GROUP BY status", nativeQuery = true)
+    List<Object[]> countByStatusGroup();
+
+    @Query(value = "SELECT priority, COUNT(*) FROM tickets GROUP BY priority", nativeQuery = true)
+    List<Object[]> countByPriorityGroup();
+
+    @Query(value = """
+        SELECT COALESCE(c.name, 'Uncategorized') AS name, COUNT(*) AS cnt
+        FROM tickets t LEFT JOIN categories c ON t.category_id = c.id
+        GROUP BY c.name
+        ORDER BY cnt DESC
+        """, nativeQuery = true)
+    List<Object[]> countByCategoryGroup();
+
+    // Small, targeted, still-paginated queries for the "your tickets" widget —
+    // an agent's personal snapshot doesn't need the whole system's ticket list
+    // filtered client-side, just their own numbers.
+    @Query(value = """
+        SELECT
+            SUM(CASE WHEN status NOT IN ('RESOLVED','CLOSED') THEN 1 ELSE 0 END) AS openCount,
+            SUM(CASE WHEN sla_due_date IS NOT NULL THEN 1 ELSE 0 END) AS withSla,
+            SUM(CASE WHEN sla_due_date IS NOT NULL AND sla_breached = false THEN 1 ELSE 0 END) AS slaCompliant,
+            SUM(CASE WHEN status = 'RESOLVED' AND DATE(resolved_at) = CURDATE() THEN 1 ELSE 0 END) AS resolvedToday
+        FROM tickets
+        WHERE assigned_agent = :username
+        """, nativeQuery = true)
+    Object[] getPersonalDashboardCounts(@Param("username") String username);
 }

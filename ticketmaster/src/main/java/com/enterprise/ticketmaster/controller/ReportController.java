@@ -4,6 +4,7 @@ import com.enterprise.ticketmaster.model.AgentPerformanceDto;
 import com.enterprise.ticketmaster.repository.CommentRepository;
 import com.enterprise.ticketmaster.repository.TicketRepository;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
@@ -99,5 +100,67 @@ public class ReportController {
             volumeResult.add(point);
         }
         return ResponseEntity.ok(volumeResult);
+    }
+
+    // Replaces the old approach of fetching every ticket (with comments
+    // eagerly joined) into the browser just to count statuses and percentages
+    // in JavaScript. Everything here is a GROUP BY / COUNT computed by the
+    // database — the response is a handful of numbers regardless of whether
+    // there are 40 tickets or 4 million.
+    @GetMapping("/dashboard-summary")
+    public ResponseEntity<Map<String, Object>> dashboardSummary() {
+        Object[] counts = ticketRepository.getDashboardCounts();
+        long total     = ((Number) counts[0]).longValue();
+        long openCount = counts[1] == null ? 0 : ((Number) counts[1]).longValue();
+        long resolved  = counts[2] == null ? 0 : ((Number) counts[2]).longValue();
+        long withSla   = counts[3] == null ? 0 : ((Number) counts[3]).longValue();
+        long compliant = counts[4] == null ? 0 : ((Number) counts[4]).longValue();
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("total", total);
+        summary.put("openCount", openCount);
+        summary.put("resolvedCount", resolved);
+        // null (not 0) when no ticket has an SLA deadline yet — "no data" and
+        // "0% compliant" are different things and shouldn't look the same.
+        summary.put("slaCompliancePct", withSla == 0 ? null : Math.round((compliant * 100.0) / withSla));
+
+        Map<String, Long> statusBreakdown = new LinkedHashMap<>();
+        for (Object[] row : ticketRepository.countByStatusGroup()) {
+            statusBreakdown.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        summary.put("statusBreakdown", statusBreakdown);
+
+        Map<String, Long> priorityBreakdown = new LinkedHashMap<>();
+        for (Object[] row : ticketRepository.countByPriorityGroup()) {
+            priorityBreakdown.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        summary.put("priorityBreakdown", priorityBreakdown);
+
+        Map<String, Long> categoryBreakdown = new LinkedHashMap<>();
+        for (Object[] row : ticketRepository.countByCategoryGroup()) {
+            categoryBreakdown.put((String) row[0], ((Number) row[1]).longValue());
+        }
+        summary.put("categoryBreakdown", categoryBreakdown);
+
+        return ResponseEntity.ok(summary);
+    }
+
+    // Same idea, scoped to one agent — the "your tickets" dashboard widget
+    // shouldn't require fetching the whole system's tickets and filtering
+    // client-side for one username.
+    @GetMapping("/dashboard-summary/me")
+    public ResponseEntity<Map<String, Object>> personalDashboardSummary(Authentication authentication) {
+        Object[] row = ticketRepository.getPersonalDashboardCounts(authentication.getName());
+
+        long openCount      = row[0] == null ? 0 : ((Number) row[0]).longValue();
+        long withSla        = row[1] == null ? 0 : ((Number) row[1]).longValue();
+        long compliant      = row[2] == null ? 0 : ((Number) row[2]).longValue();
+        long resolvedToday  = row[3] == null ? 0 : ((Number) row[3]).longValue();
+
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("openCount", openCount);
+        summary.put("slaCompliancePct", withSla == 0 ? null : Math.round((compliant * 100.0) / withSla));
+        summary.put("resolvedToday", resolvedToday);
+        return ResponseEntity.ok(summary);
     }
 }
