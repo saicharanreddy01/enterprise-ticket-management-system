@@ -154,4 +154,4 @@ This project went through a full competitive gap-analysis roadmap comparing Tick
 
 - P Sai Charan Reddy 
 - B.Tech CSE(AI)
-- Stanford University Innovation Fellow
+
