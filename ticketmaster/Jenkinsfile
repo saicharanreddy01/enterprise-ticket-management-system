@@ -1,15 +1,26 @@
 pipeline {
     agent any
+
+    parameters {
+        choice(
+            name: 'ENVIRONMENT',
+            choices: ['Development', 'Test', 'Production'],
+            description: 'Select the environment'
+        )
+    }
+
     tools {
         jdk 'jdk21'
         maven 'maven3'
     }
+
     stages {
-        stage('Checkout Code') {
+        stage('Show Environment') {
             steps {
-                checkout scm
+                echo "Selected environment: ${params.ENVIRONMENT}"
             }
         }
+
         stage('Build Project') {
             steps {
                 dir('ticketmaster') {
@@ -17,12 +28,19 @@ pipeline {
                 }
             }
         }
+
         stage('Run Tests') {
             steps {
                 dir('ticketmaster') {
                     bat 'mvn test'
                 }
             }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: 'ticketmaster/target/surefire-reports/*.xml'
         }
     }
 }
