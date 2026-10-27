@@ -153,5 +153,5 @@ This project went through a full competitive gap-analysis roadmap comparing Tick
 ## Author
 
 - P Sai Charan Reddy
-- CSE(AI)
+
 
